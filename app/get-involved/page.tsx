@@ -1,21 +1,93 @@
-import type { Metadata } from "next";
-import Link from "next/link";
+"use client";
 
-export const metadata: Metadata = {
-  title: "Get Involved | LMGHI",
-  description:
-    "Donate, partner, or volunteer with LMGHI. Structured pathways for support, collaboration, and measurable impact.",
+import { useState } from "react";
+import { supabase } from "@/lib/supabaseClient";
+
+type FormState = {
+  full_name: string;
+  email: string;
+  phone: string;
+  country: string;
+  city: string;
+  role_interest: string;
+  availability: string;
+  motivation: string;
 };
 
-function Card({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-6 backdrop-blur-md">
-      {children}
-    </div>
-  );
-}
-
 export default function GetInvolvedPage() {
+  const [loading, setLoading] = useState(false);
+  const [done, setDone] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const [cvFile, setCvFile] = useState<File | null>(null);
+
+  const [form, setForm] = useState<FormState>({
+    full_name: "",
+    email: "",
+    phone: "",
+    country: "",
+    city: "",
+    role_interest: "Community Outreach",
+    availability: "",
+    motivation: "",
+  });
+
+  const onChange = (k: keyof FormState, v: string) =>
+    setForm((p) => ({ ...p, [k]: v }));
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setDone(null);
+    setLoading(true);
+
+    try {
+      // 1) Upload CV (optional)
+      let cv_url: string | null = null;
+
+      if (cvFile) {
+        const safeName = cvFile.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+        const path = `volunteers/${Date.now()}_${safeName}`;
+
+        const { error: upErr } = await supabase.storage
+          .from("cv_uploads")
+          .upload(path, cvFile, { upsert: false });
+
+        if (upErr) throw new Error(`CV upload failed: ${upErr.message}`);
+
+        const { data } = supabase.storage.from("cv_uploads").getPublicUrl(path);
+        cv_url = data.publicUrl;
+      }
+
+      // 2) Insert application
+      const { error: insErr } = await supabase
+        .from("volunteer_applications")
+        .insert({
+          ...form,
+          cv_url,
+        });
+
+      if (insErr) throw new Error(`Submit failed: ${insErr.message}`);
+
+      setDone("Application submitted. LMGHI will contact you if shortlisted.");
+      setForm({
+        full_name: "",
+        email: "",
+        phone: "",
+        country: "",
+        city: "",
+        role_interest: "Community Outreach",
+        availability: "",
+        motivation: "",
+      });
+      setCvFile(null);
+    } catch (err: any) {
+      setError(err?.message || "Something went wrong.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <div className="space-y-10">
       <div>
@@ -24,86 +96,151 @@ export default function GetInvolvedPage() {
         </div>
         <h1 className="mt-4 text-4xl font-bold">Get Involved</h1>
         <p className="mt-3 max-w-3xl text-white/70">
-          Choose a structured pathway. We align support to measurable outcomes, governance, and
-          transparent reporting.
+          Choose a structured pathway. Volunteer applications are tracked and reviewed under
+          defined roles and reporting standards.
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <div className="text-sm text-emerald-200">Donate</div>
-          <div className="mt-2 text-xl font-semibold">Fund measurable impact</div>
+      <div className="grid gap-6 md:grid-cols-2">
+        <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-6 backdrop-blur-md">
+          <h2 className="text-xl font-semibold">Volunteer application</h2>
           <p className="mt-2 text-sm text-white/70">
-            Support delivery capacity, follow-up systems, and reporting integrity.
+            Submit your details and (optional) CV. You’ll receive a response if shortlisted.
           </p>
-          <div className="mt-4 flex flex-col gap-2">
-            <Link
-              href="/donate"
-              className="rounded-full bg-emerald-500 px-4 py-2 text-center text-sm font-semibold text-black hover:bg-emerald-400"
-            >
-              Donate securely
-            </Link>
-            <Link
-              href="/impact"
-              className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-center text-sm hover:bg-white/10"
-            >
-              See transparency
-            </Link>
-          </div>
-        </Card>
 
-        <Card>
-          <div className="text-sm text-emerald-200">Partner</div>
-          <div className="mt-2 text-xl font-semibold">Deploy with us</div>
-          <p className="mt-2 text-sm text-white/70">
-            Government, NGOs, and institutions can partner for structured deployment and reporting.
-          </p>
-          <div className="mt-4">
-            <Link
-              href="/contact"
-              className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-center text-sm hover:bg-white/10 inline-block w-full"
-            >
-              Partnership inquiry
-            </Link>
-          </div>
-        </Card>
-
-        <Card>
-          <div className="text-sm text-emerald-200">Volunteer</div>
-          <div className="mt-2 text-xl font-semibold">Join execution</div>
-          <p className="mt-2 text-sm text-white/70">
-            Volunteers operate within defined roles and supervised workflows.
-          </p>
-          <div className="mt-4">
-            <Link
-              href="/contact"
-              className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-center text-sm hover:bg-white/10 inline-block w-full"
-            >
-              Apply to volunteer
-            </Link>
-          </div>
-        </Card>
-      </div>
-
-      <Card>
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <div className="text-xs text-emerald-200/90">NOTE</div>
-            <div className="mt-2 text-lg font-semibold">
-              Applications and donations will be fully automated next.
+          <form onSubmit={handleSubmit} className="mt-5 space-y-4">
+            <div className="grid gap-3 md:grid-cols-2">
+              <input
+                className="w-full rounded-xl border border-white/10 bg-white/5 p-4 outline-none focus:border-emerald-400/40"
+                placeholder="Full name *"
+                value={form.full_name}
+                onChange={(e) => onChange("full_name", e.target.value)}
+                required
+              />
+              <input
+                className="w-full rounded-xl border border-white/10 bg-white/5 p-4 outline-none focus:border-emerald-400/40"
+                placeholder="Email *"
+                type="email"
+                value={form.email}
+                onChange={(e) => onChange("email", e.target.value)}
+                required
+              />
             </div>
-            <p className="mt-2 max-w-3xl text-sm text-white/70">
-              Next phase: connect forms to email + database, and wire Stripe donations.
-            </p>
-          </div>
-          <Link
-            href="/contact"
-            className="rounded-full bg-emerald-500 px-5 py-3 text-sm font-semibold text-black hover:bg-emerald-400"
-          >
-            Contact LMGHI
-          </Link>
+
+            <div className="grid gap-3 md:grid-cols-2">
+              <input
+                className="w-full rounded-xl border border-white/10 bg-white/5 p-4 outline-none focus:border-emerald-400/40"
+                placeholder="Phone (optional)"
+                value={form.phone}
+                onChange={(e) => onChange("phone", e.target.value)}
+              />
+              <select
+                className="w-full rounded-xl border border-white/10 bg-white/5 p-4 outline-none focus:border-emerald-400/40"
+                value={form.role_interest}
+                onChange={(e) => onChange("role_interest", e.target.value)}
+              >
+                <option>Community Outreach</option>
+                <option>Data Collection</option>
+                <option>Program Support</option>
+                <option>Clinical Support</option>
+                <option>Media / Communications</option>
+              </select>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-2">
+              <input
+                className="w-full rounded-xl border border-white/10 bg-white/5 p-4 outline-none focus:border-emerald-400/40"
+                placeholder="Country"
+                value={form.country}
+                onChange={(e) => onChange("country", e.target.value)}
+              />
+              <input
+                className="w-full rounded-xl border border-white/10 bg-white/5 p-4 outline-none focus:border-emerald-400/40"
+                placeholder="City"
+                value={form.city}
+                onChange={(e) => onChange("city", e.target.value)}
+              />
+            </div>
+
+            <input
+              className="w-full rounded-xl border border-white/10 bg-white/5 p-4 outline-none focus:border-emerald-400/40"
+              placeholder="Availability (e.g., weekends, evenings)"
+              value={form.availability}
+              onChange={(e) => onChange("availability", e.target.value)}
+            />
+
+            <textarea
+              className="w-full rounded-xl border border-white/10 bg-white/5 p-4 outline-none focus:border-emerald-400/40"
+              placeholder="Why do you want to volunteer with LMGHI?"
+              rows={5}
+              value={form.motivation}
+              onChange={(e) => onChange("motivation", e.target.value)}
+            />
+
+            <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+              <div className="text-sm font-semibold">Upload CV (optional)</div>
+              <div className="mt-2 text-xs text-white/60">
+                PDF recommended. This will be stored in our CV uploads bucket.
+              </div>
+              <input
+                className="mt-3 block w-full text-sm text-white/70"
+                type="file"
+                accept=".pdf,.doc,.docx"
+                onChange={(e) => setCvFile(e.target.files?.[0] ?? null)}
+              />
+            </div>
+
+            {error && (
+              <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-200">
+                {error}
+              </div>
+            )}
+            {done && (
+              <div className="rounded-xl border border-emerald-400/20 bg-emerald-500/10 p-4 text-sm text-emerald-100">
+                {done}
+              </div>
+            )}
+
+            <button
+              disabled={loading}
+              className="w-full rounded-full bg-emerald-500 px-6 py-3 font-semibold text-black hover:bg-emerald-400 disabled:opacity-60"
+              type="submit"
+            >
+              {loading ? "Submitting..." : "Submit application"}
+            </button>
+          </form>
         </div>
-      </Card>
+
+        <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-6 backdrop-blur-md">
+          <h2 className="text-xl font-semibold">Partner / Donate</h2>
+          <p className="mt-2 text-sm text-white/70">
+            Partner deployments and donation systems are next. We’ll connect verified workflows and
+            transparency reporting to every support pathway.
+          </p>
+
+          <div className="mt-5 space-y-3">
+            <a
+              href="/impact"
+              className="block rounded-xl border border-white/10 bg-white/5 p-4 hover:bg-white/10"
+            >
+              <div className="font-semibold">Impact & Transparency</div>
+              <div className="text-sm text-white/60">
+                See reporting standards, disclosure, and audit readiness.
+              </div>
+            </a>
+
+            <a
+              href="/contact"
+              className="block rounded-xl border border-white/10 bg-white/5 p-4 hover:bg-white/10"
+            >
+              <div className="font-semibold">Partnership inquiry</div>
+              <div className="text-sm text-white/60">
+                Government, NGO, and institutional deployment discussions.
+              </div>
+            </a>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
