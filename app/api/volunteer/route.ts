@@ -109,7 +109,7 @@ export async function POST(req: Request) {
       try {
         await resend.emails.send({
           from,
-          to: adminEmail,
+          to: ["roadmandell20@gmail.com"], // TEMP: send only to Resend account email for testing
           subject: "New Volunteer Application — LMGHI",
           text: `New application received:\n\nName: ${body.fullName}\nEmail: ${body.email}\nPhone: ${body.phone || "-"}\nTrack: ${body.track}\nCountry: ${body.country || "-"}\nCity: ${body.city || "-"}\nAvailability: ${body.availability || "-"}\nMotivation: ${body.motivation || "-"}\nCV: ${body.cvUrl || "-"}`,
         });
