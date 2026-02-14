@@ -7,3 +7,4 @@ if (!supabaseUrl) throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL in .env.loca
 if (!supabaseAnonKey) throw new Error("Missing NEXT_PUBLIC_SUPABASE_ANON_KEY in .env.local");
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+console.log("ENV URL:", process.env.NEXT_PUBLIC_SUPABASE_URL);
