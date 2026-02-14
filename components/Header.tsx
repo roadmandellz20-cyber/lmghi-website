@@ -1,9 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { useTheme } from "next-themes";
+import { useState, useEffect } from "react";
+import { Menu, X, Sun, Moon } from "lucide-react";
 
 const nav = [
   { href: "/", label: "Home" },
@@ -15,152 +14,134 @@ const nav = [
   { href: "/contact", label: "Contact" },
 ];
 
-function ThemeToggle() {
-  const { theme, setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => setMounted(true), []);
-  if (!mounted) return null;
-
-  const next = theme === "dark" ? "light" : "dark";
-
-  return (
-    <motion.button
-      whileTap={{ scale: 0.94 }}
-      whileHover={{ scale: 1.03 }}
-      onClick={() => setTheme(next)}
-      className="liquid-btn rounded-full px-3 py-2 text-xs font-semibold"
-      type="button"
-      aria-label="Toggle theme"
-    >
-      {theme === "dark" ? "Light" : "Dark"}
-    </motion.button>
-  );
-}
-
 export default function Header() {
   const [open, setOpen] = useState(false);
+  const [dark, setDark] = useState(true);
+  const [mounted, setMounted] = useState(false);
 
-  // lock scroll when menu open
+  // ✅ prevent hydration mismatch
   useEffect(() => {
-    document.body.style.overflow = open ? "hidden" : "";
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, [open]);
+    setMounted(true);
+    const isDark = document.documentElement.classList.contains("dark");
+    setDark(isDark);
+  }, []);
+
+  // ✅ toggle theme properly
+  const toggleTheme = () => {
+    const root = document.documentElement;
+
+    if (dark) {
+      root.classList.remove("dark");
+      setDark(false);
+    } else {
+      root.classList.add("dark");
+      setDark(true);
+    }
+  };
+
+  if (!mounted) return null;
 
   return (
-    <header className="sticky top-0 z-50 border-b border-black/10 bg-white/70 backdrop-blur dark:border-white/10 dark:bg-black/70">
-      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 md:h-16 md:px-6">
-        {/* Brand */}
+    <header className="sticky top-0 z-50 border-b border-black/10 bg-white/70 backdrop-blur-xl dark:border-white/10 dark:bg-black/60">
+      <div className="container-safe flex items-center justify-between py-4">
+        {/* ✅ Logo */}
         <Link href="/" className="flex items-center gap-3">
-          <div className="h-9 w-9 rounded-xl bg-emerald-500/15 ring-1 ring-emerald-400/25" />
+          <div className="h-10 w-10 rounded-xl bg-emerald-500/20 ring-1 ring-emerald-400/30" />
           <div className="leading-tight">
-            <div className="text-sm font-semibold md:text-base">LMGHI</div>
-            <div className="hidden text-xs text-black/60 dark:text-white/60 md:block">
+            <div className="font-semibold tracking-tight">LMGHI</div>
+            <div className="text-xs opacity-60">
               Lambano Medfront Global Health Initiative
             </div>
           </div>
         </Link>
 
-        {/* Desktop nav */}
-        <nav className="hidden items-center gap-1 md:flex">
+        {/* ✅ Desktop nav */}
+        <nav className="hidden items-center gap-2 lg:flex">
           {nav.map((item) => (
             <Link
               key={item.href}
               href={item.href}
-              className="rounded-full px-4 py-2 text-sm text-black/80 hover:bg-black/5 hover:text-black dark:text-white/80 dark:hover:bg-white/5 dark:hover:text-white"
+              className="liquid-btn px-4 py-2 text-sm"
             >
               {item.label}
             </Link>
           ))}
 
-          <ThemeToggle />
+          {/* Theme toggle */}
+          <button
+            onClick={toggleTheme}
+            className="liquid-btn ml-2 flex items-center justify-center p-2"
+            aria-label="Toggle theme"
+          >
+            {dark ? <Sun size={16} /> : <Moon size={16} />}
+          </button>
 
+          {/* Donate button */}
           <Link
             href="/get-involved"
-            className="ml-2 liquid-btn rounded-full bg-emerald-500/90 px-4 py-2 text-sm font-semibold text-black hover:bg-emerald-400"
+            className="ml-2 rounded-full bg-emerald-500 px-5 py-2 text-sm font-semibold text-black transition hover:bg-emerald-400"
           >
             Donate
           </Link>
         </nav>
 
-        {/* Mobile actions */}
-        <div className="flex items-center gap-2 md:hidden">
-          <ThemeToggle />
+        {/* ✅ Mobile controls */}
+        <div className="flex items-center gap-2 lg:hidden">
+          <button
+            onClick={toggleTheme}
+            className="liquid-btn p-2"
+            aria-label="Toggle theme"
+          >
+            {dark ? <Sun size={16} /> : <Moon size={16} />}
+          </button>
 
-          <motion.button
-            whileTap={{ scale: 0.94 }}
+          <button
             onClick={() => setOpen(true)}
-            className="liquid-btn rounded-full px-3 py-2 text-xs font-semibold"
-            type="button"
+            className="liquid-btn p-2"
             aria-label="Open menu"
           >
-            Menu
-          </motion.button>
+            <Menu size={18} />
+          </button>
         </div>
       </div>
 
-      {/* Mobile drawer */}
-      <AnimatePresence>
-        {open && (
-          <>
-            <motion.div
-              className="fixed inset-0 z-50 bg-black/50"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setOpen(false)}
-            />
-            <motion.aside
-              className="fixed right-0 top-0 z-50 h-full w-[86%] max-w-sm border-l border-black/10 bg-white p-5 dark:border-white/10 dark:bg-black"
-              initial={{ x: 420 }}
-              animate={{ x: 0 }}
-              exit={{ x: 420 }}
-              transition={{ type: "spring", stiffness: 260, damping: 26 }}
-            >
-              <div className="flex items-center justify-between">
-                <div className="text-sm font-semibold">Navigation</div>
-                <motion.button
-                  whileTap={{ scale: 0.94 }}
-                  onClick={() => setOpen(false)}
-                  className="liquid-btn rounded-full px-3 py-2 text-xs font-semibold"
-                  type="button"
-                >
-                  Close
-                </motion.button>
-              </div>
+      {/* ✅ Mobile menu */}
+      {open && (
+        <div className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm lg:hidden">
+          <div className="absolute right-0 top-0 h-full w-[85%] max-w-sm bg-white p-6 shadow-2xl dark:bg-neutral-950">
+            <div className="mb-6 flex items-center justify-between">
+              <div className="font-semibold">Menu</div>
+              <button
+                onClick={() => setOpen(false)}
+                className="liquid-btn p-2"
+              >
+                <X size={18} />
+              </button>
+            </div>
 
-              <div className="mt-5 space-y-2">
-                {nav.map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={() => setOpen(false)}
-                    className="block rounded-xl border border-black/10 bg-black/5 px-4 py-3 text-sm text-black hover:bg-black/10 dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:bg-white/10"
-                  >
-                    {item.label}
-                  </Link>
-                ))}
-              </div>
-
-              <div className="mt-6">
+            <div className="flex flex-col gap-2">
+              {nav.map((item) => (
                 <Link
-                  href="/get-involved"
+                  key={item.href}
+                  href={item.href}
                   onClick={() => setOpen(false)}
-                  className="block w-full rounded-full bg-emerald-500 px-4 py-3 text-center text-sm font-semibold text-black hover:bg-emerald-400"
+                  className="liquid-btn w-full px-4 py-3 text-sm"
                 >
-                  Donate
+                  {item.label}
                 </Link>
+              ))}
 
-                <div className="mt-3 text-xs text-black/60 dark:text-white/60">
-                  Structured • Governed • Data-driven • Accountable • Scalable
-                </div>
-              </div>
-            </motion.aside>
-          </>
-        )}
-      </AnimatePresence>
+              <Link
+                href="/get-involved"
+                onClick={() => setOpen(false)}
+                className="mt-3 w-full rounded-full bg-emerald-500 px-5 py-3 text-center font-semibold text-black"
+              >
+                Donate
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
     </header>
   );
 }

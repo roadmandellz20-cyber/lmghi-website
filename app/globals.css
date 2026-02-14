@@ -1,137 +1,238 @@
 @import "tailwindcss";
 
-/* -----------------------------
-   Theme tokens
------------------------------- */
+/* -------------------------------------------------------
+   Theme tokens (drives EVERYTHING, including layout/header)
+-------------------------------------------------------- */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Base */
+  --bg: 255 255 255;
+  --fg: 10 10 10;
+
+  /* Surfaces */
+  --card: 255 255 255;
+  --card-2: 248 248 248;
+  --border: 0 0 0;
 
   /* Accent */
-  --accent: 16 185 129; /* emerald-500 rgb */
+  --accent: 16 185 129; /* emerald-500-ish */
+  --accent-2: 34 197 94;
+
+  /* Shadows */
+  --shadow: 0 0 0;
+
+  /* Glass */
+  --glass: 255 255 255;
+  --glass-border: 0 0 0;
 }
 
-/* If you use next-themes (class="dark"), this will apply */
 html.dark {
-  --background: #0a0a0a;
-  --foreground: #ededed;
+  --bg: 3 6 10;
+  --fg: 236 240 245;
+
+  --card: 10 14 18;
+  --card-2: 12 18 22;
+  --border: 255 255 255;
+
+  --accent: 16 185 129;
+  --accent-2: 34 197 94;
+
+  --shadow: 0 0 0;
+
+  --glass: 16 18 22;
+  --glass-border: 255 255 255;
 }
 
-/* Keep system preference as a fallback */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+  height: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: rgb(var(--bg));
+  color: rgb(var(--fg));
 }
 
-/* -----------------------------
-   Better mobile sizing
------------------------------- */
-html {
-  -webkit-text-size-adjust: 100%;
-  text-size-adjust: 100%;
-}
-
-/* -----------------------------
-   Liquid glass button
------------------------------- */
-.liquid-btn {
-  position: relative;
-  border-radius: 9999px;
-
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-
-  background: color-mix(in oklab, white 10%, transparent);
-  border: 1px solid color-mix(in oklab, white 18%, transparent);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
-
-  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
-}
-
-html.dark .liquid-btn {
-  background: color-mix(in oklab, black 20%, transparent);
-  border: 1px solid color-mix(in oklab, white 14%, transparent);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35),
-    inset 0 1px 0 rgba(255, 255, 255, 0.14);
-}
-
-.liquid-btn::before {
-  content: "";
-  position: absolute;
+/* -------------------------------------------------------
+   App background "alive" effect (subtle, premium)
+-------------------------------------------------------- */
+.app-bg {
+  position: fixed;
   inset: 0;
-  border-radius: inherit;
-  background: radial-gradient(
-    120% 120% at 20% 0%,
-    rgba(255, 255, 255, 0.35),
-    transparent 55%
-  );
-  opacity: 0.75;
+  z-index: -1;
   pointer-events: none;
+  background:
+    radial-gradient(900px 500px at 10% 10%, rgba(var(--accent), 0.16), transparent 60%),
+    radial-gradient(900px 500px at 90% 20%, rgba(var(--accent-2), 0.12), transparent 60%),
+    radial-gradient(700px 400px at 50% 90%, rgba(59, 130, 246, 0.10), transparent 60%);
+  filter: saturate(1.2);
 }
 
-.liquid-btn:hover {
-  border-color: rgba(255, 255, 255, 0.28);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.22),
-    inset 0 1px 0 rgba(255, 255, 255, 0.22);
+html.dark .app-bg {
+  background:
+    radial-gradient(900px 500px at 10% 10%, rgba(var(--accent), 0.14), transparent 60%),
+    radial-gradient(900px 500px at 90% 20%, rgba(var(--accent-2), 0.10), transparent 60%),
+    radial-gradient(700px 400px at 50% 90%, rgba(59, 130, 246, 0.08), transparent 60%);
 }
 
-.liquid-btn:active {
+/* -------------------------------------------------------
+   iOS-ish liquid glass (buttons + cards)
+-------------------------------------------------------- */
+.glass {
+  background: linear-gradient(
+    135deg,
+    rgba(var(--glass), 0.72),
+    rgba(var(--glass), 0.42)
+  );
+  border: 1px solid rgba(var(--glass-border), 0.12);
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.10);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+html.dark .glass {
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+/* -------------------------------------------------------
+   Universal button system (STOP random-looking buttons)
+   Use className="btn" / "btn-primary" / "btn-ghost"
+-------------------------------------------------------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+
+  border-radius: 9999px;
+  padding: 0.70rem 1rem;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+
+  transition:
+    transform 150ms ease,
+    box-shadow 150ms ease,
+    background 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease,
+    opacity 150ms ease;
+
+  transform: translateZ(0);
+  user-select: none;
+}
+
+.btn:active {
   transform: scale(0.98);
 }
 
-/* -----------------------------
-   Subtle animated gradient bg helper
-   (Use on a wrapper: className="animated-bg")
------------------------------- */
-.animated-bg {
-  position: relative;
+.btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(var(--accent), 0.28);
 }
 
-.animated-bg::before {
-  content: "";
-  position: fixed;
-  inset: -40%;
-  z-index: -1;
-  background:
-    radial-gradient(600px circle at 20% 20%, rgba(var(--accent), 0.18), transparent 55%),
-    radial-gradient(700px circle at 80% 30%, rgba(59, 130, 246, 0.12), transparent 55%),
-    radial-gradient(700px circle at 40% 80%, rgba(168, 85, 247, 0.10), transparent 55%);
-  filter: blur(30px);
-  opacity: 0.9;
-  animation: bgFloat 18s ease-in-out infinite;
-  pointer-events: none;
+/* liquid glass base */
+.btn-glass {
+  background: linear-gradient(
+    135deg,
+    rgba(var(--glass), 0.70),
+    rgba(var(--glass), 0.35)
+  );
+  border: 1px solid rgba(var(--glass-border), 0.14);
+  box-shadow:
+    0 18px 45px rgba(0, 0, 0, 0.10),
+    inset 0 1px 0 rgba(255, 255, 255, 0.10);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
 }
 
-@keyframes bgFloat {
-  0%   { transform: translate3d(-1%, -1%, 0) scale(1); }
-  50%  { transform: translate3d(1%, 1%, 0) scale(1.02); }
-  100% { transform: translate3d(-1%, -1%, 0) scale(1); }
+html.dark .btn-glass {
+  box-shadow:
+    0 18px 45px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
-/* -----------------------------
-   Cursor glow (desktop only)
-   We'll hook into CSS variables --x and --y later.
------------------------------- */
-@media (hover: hover) and (pointer: fine) {
-  .cursor-glow {
-    position: fixed;
-    inset: 0;
-    pointer-events: none;
-    z-index: 0;
-    background: radial-gradient(
-      600px circle at var(--x) var(--y),
-      rgba(var(--accent), 0.18),
-      transparent 55%
-    );
-    opacity: 0.55;
+/* variants */
+.btn-primary {
+  background: rgb(var(--accent));
+  color: #04130d;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 12px 28px rgba(var(--accent), 0.24);
+}
+
+.btn-primary:hover {
+  filter: brightness(1.05);
+}
+
+.btn-ghost {
+  background: rgba(var(--glass), 0.0);
+  border: 1px solid rgba(var(--glass-border), 0.14);
+}
+
+.btn-ghost:hover {
+  background: rgba(var(--glass), 0.18);
+}
+
+.btn-icon {
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  border-radius: 9999px;
+}
+
+/* -------------------------------------------------------
+   Inputs – consistent + responsive
+-------------------------------------------------------- */
+.input,
+.select,
+.textarea {
+  width: 100%;
+  border-radius: 16px;
+  border: 1px solid rgba(var(--glass-border), 0.12);
+  background: rgba(var(--glass), 0.20);
+  padding: 0.95rem 1rem;
+  outline: none;
+  transition: border-color 150ms ease, box-shadow 150ms ease, background 150ms ease;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.input:focus,
+.select:focus,
+.textarea:focus {
+  border-color: rgba(var(--accent), 0.55);
+  box-shadow: 0 0 0 4px rgba(var(--accent), 0.18);
+}
+
+.textarea {
+  resize: vertical;
+}
+
+/* -------------------------------------------------------
+   Mobile: stop overflow / bad scaling
+-------------------------------------------------------- */
+.container-safe {
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+@media (min-width: 768px) {
+  .container-safe {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
   }
+}
+
+.no-overflow-x {
+  overflow-x: hidden;
 }
