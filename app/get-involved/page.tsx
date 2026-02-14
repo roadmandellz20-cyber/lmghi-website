@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
 type FormState = {
@@ -14,12 +14,34 @@ type FormState = {
   motivation: string;
 };
 
+declare global {
+  interface Window {
+    turnstile?: {
+      render: (
+        el: HTMLElement,
+        options: {
+          sitekey: string;
+          callback: (token: string) => void;
+          "expired-callback"?: () => void;
+          "error-callback"?: () => void;
+          theme?: "light" | "dark" | "auto";
+        }
+      ) => string;
+      reset: (widgetId?: string) => void;
+    };
+  }
+}
+
 export default function GetInvolvedPage() {
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const [cvFile, setCvFile] = useState<File | null>(null);
+
+  const [turnstileToken, setTurnstileToken] = useState<string>("");
+  const turnstileElRef = useRef<HTMLDivElement | null>(null);
+  const widgetIdRef = useRef<string | null>(null);
 
   const [form, setForm] = useState<FormState>({
     full_name: "",
@@ -35,10 +57,61 @@ export default function GetInvolvedPage() {
   const onChange = (k: keyof FormState, v: string) =>
     setForm((p) => ({ ...p, [k]: v }));
 
+  // Load Turnstile script + render widget
+  useEffect(() => {
+    const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+    if (!siteKey) {
+      setError("Missing NEXT_PUBLIC_TURNSTILE_SITE_KEY in env.");
+      return;
+    }
+
+    // already loaded?
+    const existing = document.querySelector('script[data-turnstile="1"]');
+    if (!existing) {
+      const s = document.createElement("script");
+      s.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+      s.async = true;
+      s.defer = true;
+      s.dataset.turnstile = "1";
+      document.body.appendChild(s);
+    }
+
+    const interval = setInterval(() => {
+      if (!window.turnstile || !turnstileElRef.current) return;
+
+      // Render once
+      if (!widgetIdRef.current) {
+        widgetIdRef.current = window.turnstile.render(turnstileElRef.current, {
+          sitekey: siteKey,
+          theme: "dark",
+          callback: (token) => {
+            setTurnstileToken(token);
+          },
+          "expired-callback": () => {
+            setTurnstileToken("");
+          },
+          "error-callback": () => {
+            setTurnstileToken("");
+          },
+        });
+      }
+
+      clearInterval(interval);
+    }, 200);
+
+    return () => clearInterval(interval);
+  }, []);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setDone(null);
+
+    if (!turnstileToken) {
+      setError("Please complete the Turnstile check.");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -59,7 +132,7 @@ export default function GetInvolvedPage() {
         cv_url = data.publicUrl;
       }
 
-      // 2) Send to server (server writes to DB + emails admins)
+      // 2) Send to server
       const res = await fetch("/api/volunteer", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -73,12 +146,13 @@ export default function GetInvolvedPage() {
           availability: form.availability,
           motivation: form.motivation,
           cvUrl: cv_url,
+          turnstileToken,
         }),
       });
 
       const data = await res.json();
       if (!res.ok || !data.ok) {
-        throw new Error(data?.error || "Submission failed.");
+        throw new Error(data?.message || data?.error || "Submission failed.");
       }
 
       setDone("Application submitted. LMGHI will contact you if shortlisted.");
@@ -93,8 +167,19 @@ export default function GetInvolvedPage() {
         motivation: "",
       });
       setCvFile(null);
+
+      // reset Turnstile after successful submit
+      setTurnstileToken("");
+      if (window.turnstile && widgetIdRef.current) {
+        window.turnstile.reset(widgetIdRef.current);
+      }
     } catch (err: any) {
       setError(err?.message || "Something went wrong.");
+      // reset token so user re-verifies (prevents stuck/fake tokens)
+      setTurnstileToken("");
+      if (window.turnstile && widgetIdRef.current) {
+        window.turnstile.reset(widgetIdRef.current);
+      }
     } finally {
       setLoading(false);
     }
@@ -108,8 +193,7 @@ export default function GetInvolvedPage() {
         </div>
         <h1 className="mt-4 text-4xl font-bold">Get Involved</h1>
         <p className="mt-3 max-w-3xl text-white/70">
-          Choose a structured pathway. Volunteer applications are tracked and reviewed under
-          defined roles and reporting standards.
+          Choose a structured pathway. Volunteer applications are tracked and reviewed under defined roles and reporting standards.
         </p>
       </div>
 
@@ -202,6 +286,17 @@ export default function GetInvolvedPage() {
               />
             </div>
 
+            {/* Turnstile box */}
+            <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+              <div className="text-sm font-semibold">Human check</div>
+              <div className="mt-2" ref={turnstileElRef} />
+              {!turnstileToken && (
+                <div className="mt-2 text-xs text-white/60">
+                  Complete the check to enable submission.
+                </div>
+              )}
+            </div>
+
             {error && (
               <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-200">
                 {error}
@@ -214,7 +309,7 @@ export default function GetInvolvedPage() {
             )}
 
             <button
-              disabled={loading}
+              disabled={loading || !turnstileToken}
               className="w-full rounded-full bg-emerald-500 px-6 py-3 font-semibold text-black hover:bg-emerald-400 disabled:opacity-60"
               type="submit"
             >

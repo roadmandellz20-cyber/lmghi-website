@@ -1,4 +1,3 @@
-// app/api/volunteer/route.ts
 import { NextResponse } from "next/server";
 import { Resend } from "resend";
 import { createClient } from "@supabase/supabase-js";
@@ -12,150 +11,139 @@ const supabase = createClient(
 
 const resend = new Resend(process.env.RESEND_API_KEY!);
 
-export async function POST(req: Request) {
-  // ----------------------------
-  // 1) Origin allowlist (prod + localhost + vercel previews for this project)
-  // ----------------------------
-  const allowedOrigins = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "https://lmghi-website.vercel.app",
-  ];
+function getHostnameFromReq(req: Request) {
+  const origin = req.headers.get("origin");
+  const referer = req.headers.get("referer");
 
-  const rawOrigin =
-    req.headers.get("origin") || req.headers.get("referer") || "";
+  const raw = origin || referer || "";
+  if (!raw) return "";
 
-  let reqOrigin = "";
   try {
-    reqOrigin = rawOrigin ? new URL(rawOrigin).origin : "";
+    const url = new URL(raw);
+    return url.hostname; // clean hostname only
   } catch {
-    reqOrigin = "";
+    // If raw isn't a full URL, fallback
+    return "";
+  }
+}
+
+function corsHeadersForOrigin(origin: string | null) {
+  // If Origin exists, echo it back (only after we validate it)
+  return {
+    "Access-Control-Allow-Origin": origin ?? "*",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+  };
+}
+
+function isAllowedHost(hostname: string) {
+  if (!hostname) return true; // allow server-to-server / no-origin calls
+
+  // local dev
+  if (hostname === "localhost" || hostname === "127.0.0.1") return true;
+
+  // production vercel domain
+  if (hostname === "lmghi-website.vercel.app") return true;
+
+  // any Vercel preview deployment
+  if (hostname.endsWith(".vercel.app")) return true;
+
+  return false;
+}
+
+async function verifyTurnstile(token: string, remoteip?: string) {
+  const secret = process.env.TURNSTILE_SECRET_KEY;
+  if (!secret) {
+    // If you haven't set the secret in env, don't hard-crash production silently
+    return { ok: false, message: "TURNSTILE_SECRET_KEY is not set on the server." };
   }
 
-  // Allow Vercel preview deployments for THIS project (tightened)
-  const isVercelPreview =
-    reqOrigin.endsWith(".vercel.app") && reqOrigin.includes("lmghi-website");
+  const formData = new FormData();
+  formData.append("secret", secret);
+  formData.append("response", token);
+  if (remoteip) formData.append("remoteip", remoteip);
 
-  const isAllowed = allowedOrigins.includes(reqOrigin) || isVercelPreview;
+  const resp = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
+    method: "POST",
+    body: formData,
+  });
 
-  if (reqOrigin && !isAllowed) {
-    console.warn(`[volunteer] Forbidden origin: ${reqOrigin}`);
+  const data = await resp.json();
+  // data.success boolean
+  if (!data?.success) {
+    return { ok: false, message: "Turnstile verification failed.", details: data };
+  }
+  return { ok: true };
+}
+
+export async function OPTIONS(req: Request) {
+  const origin = req.headers.get("origin");
+  const hostname = getHostnameFromReq(req);
+
+  if (!isAllowedHost(hostname)) {
     return NextResponse.json(
-      {
-        ok: false,
-        status: 403,
-        stage: "origin_check",
-        message: `Forbidden origin: ${reqOrigin}`,
-      },
+      { ok: false, status: 403, stage: "origin_check", message: `Forbidden origin host: ${hostname}` },
       { status: 403 }
     );
   }
 
-  // ----------------------------
-  // 2) Minimal env presence logs (no values)
-  // ----------------------------
-  console.log("[volunteer] Env presence:", {
-    RESEND_API_KEY: !!process.env.RESEND_API_KEY,
-    RESEND_ACCOUNT_EMAIL: !!process.env.RESEND_ACCOUNT_EMAIL,
-    ADMIN_NOTIFY_EMAIL: !!process.env.ADMIN_NOTIFY_EMAIL,
-    TURNSTILE_SECRET_KEY: !!process.env.TURNSTILE_SECRET_KEY,
-    SUPABASE_URL: !!process.env.SUPABASE_URL,
-    SUPABASE_SERVICE_ROLE_KEY: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+  return new NextResponse(null, {
+    status: 204,
+    headers: corsHeadersForOrigin(origin),
   });
+}
+
+export async function POST(req: Request) {
+  const origin = req.headers.get("origin");
+  const hostname = getHostnameFromReq(req);
+
+  // ---- Origin allowlist ----
+  if (!isAllowedHost(hostname)) {
+    return NextResponse.json(
+      { ok: false, status: 403, stage: "origin_check", message: `Forbidden origin: ${origin || hostname}` },
+      { status: 403, headers: corsHeadersForOrigin(origin) }
+    );
+  }
 
   try {
     const body = await req.json();
 
-    // ----------------------------
-    // 3) Validate required fields
-    // ----------------------------
+    // ---- Turnstile check ----
+    const turnstileToken = body?.turnstileToken;
+    if (!turnstileToken) {
+      return NextResponse.json(
+        { ok: false, status: 400, stage: "turnstile", message: "Missing Turnstile token." },
+        { status: 400, headers: corsHeadersForOrigin(origin) }
+      );
+    }
+
+    const verify = await verifyTurnstile(turnstileToken);
+    if (!verify.ok) {
+      return NextResponse.json(
+        { ok: false, status: 400, stage: "turnstile", message: verify.message, details: (verify as any).details ?? null },
+        { status: 400, headers: corsHeadersForOrigin(origin) }
+      );
+    }
+
+    // ---- Basic validation ----
     if (!body.fullName || !body.email) {
       return NextResponse.json(
-        {
-          ok: false,
-          status: 400,
-          stage: "validation",
-          message: "fullName and email are required",
-        },
-        { status: 400 }
+        { ok: false, status: 400, stage: "validation", message: "fullName and email are required" },
+        { status: 400, headers: corsHeadersForOrigin(origin) }
       );
     }
 
-    // ----------------------------
-    // 4) Turnstile verify BEFORE DB insert
-    // ----------------------------
-    const token: string | undefined = body.turnstileToken;
-    if (!token) {
-      return NextResponse.json(
-        {
-          ok: false,
-          status: 400,
-          stage: "turnstile",
-          message: "Missing Turnstile token.",
-        },
-        { status: 400 }
-      );
-    }
-
-    const turnstileSecret = process.env.TURNSTILE_SECRET_KEY;
-    if (!turnstileSecret) {
-      return NextResponse.json(
-        {
-          ok: false,
-          status: 500,
-          stage: "turnstile",
-          message: "TURNSTILE_SECRET_KEY not set.",
-        },
-        { status: 500 }
-      );
-    }
-
-    const ip =
-      req.headers.get("cf-connecting-ip") ||
-      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-      "";
-
-    const form = new URLSearchParams();
-    form.append("secret", turnstileSecret);
-    form.append("response", token);
-    if (ip) form.append("remoteip", ip);
-
-    const verifyRes = await fetch(
-      "https://challenges.cloudflare.com/turnstile/v0/siteverify",
-      {
-        method: "POST",
-        headers: { "content-type": "application/x-www-form-urlencoded" },
-        body: form.toString(),
-      }
-    );
-
-    const verifyJson: any = await verifyRes.json().catch(() => ({}));
-    if (!verifyJson?.success) {
-      return NextResponse.json(
-        {
-          ok: false,
-          status: 403,
-          stage: "turnstile",
-          message: "Verification failed.",
-          details: verifyJson,
-        },
-        { status: 403 }
-      );
-    }
-
-    // ----------------------------
-    // 5) Insert into Supabase (match your DB column names)
-    // ----------------------------
+    // ---- DB payload (matches your column names) ----
     const payload = {
-      full_name: String(body.fullName).trim(),
-      email: String(body.email).trim(),
-      phone: body.phone ? String(body.phone).trim() : null,
-      role_interest: body.track ? String(body.track).trim() : null,
-      country: body.country ? String(body.country).trim() : null,
-      city: body.city ? String(body.city).trim() : null,
-      availability: body.availability ? String(body.availability).trim() : null,
-      motivation: body.motivation ? String(body.motivation).trim() : null,
-      cv_url: body.cvUrl ? String(body.cvUrl).trim() : null,
+      full_name: body.fullName,
+      email: body.email,
+      phone: body.phone ?? null,
+      role_interest: body.track ?? null,
+      country: body.country ?? null,
+      city: body.city ?? null,
+      availability: body.availability ?? null,
+      motivation: body.motivation ?? null,
+      cv_url: body.cvUrl ?? null,
     };
 
     const { data, error } = await supabase
@@ -165,97 +153,50 @@ export async function POST(req: Request) {
       .single();
 
     if (error) {
-      console.error("[volunteer] Supabase insert error:", error);
       return NextResponse.json(
-        {
-          ok: false,
-          status: 500,
-          stage: "db_insert",
-          message: error.message,
-        },
-        { status: 500 }
+        { ok: false, status: 500, stage: "db_insert", message: error.message },
+        { status: 500, headers: corsHeadersForOrigin(origin) }
       );
     }
 
-    // ----------------------------
-    // 6) Send admin email (Resend test-domain restriction handling)
-    // ----------------------------
-    const resendAccountEmail = (process.env.RESEND_ACCOUNT_EMAIL || "").trim();
-    const adminNotifyEmail = (
-      process.env.ADMIN_NOTIFY_EMAIL || resendAccountEmail
-    ).trim();
-
+    // ---- Email notification (Resend test-domain rules) ----
+    const adminNotifyEmail = process.env.ADMIN_NOTIFY_EMAIL || "";
+    const resendAccountEmail = process.env.RESEND_ACCOUNT_EMAIL || "";
     const from = "LMGHI <onboarding@resend.dev>";
-    const usingResendDev = from.includes("@resend.dev");
 
-    if (usingResendDev) {
-      if (!resendAccountEmail) {
+    const isResendDev = from.includes("@resend.dev");
+    if (isResendDev) {
+      if (!resendAccountEmail || adminNotifyEmail !== resendAccountEmail) {
         return NextResponse.json(
           {
             ok: false,
             status: 403,
             stage: "email_send",
             message:
-              "Resend test sender in use. Set RESEND_ACCOUNT_EMAIL on server env.",
+              "Resend test sender can only send to your Resend account email. Set RESEND_ACCOUNT_EMAIL and make ADMIN_NOTIFY_EMAIL match it.",
           },
-          { status: 403 }
-        );
-      }
-      if (adminNotifyEmail !== resendAccountEmail) {
-        return NextResponse.json(
-          {
-            ok: false,
-            status: 403,
-            stage: "email_send",
-            message:
-              "Resend sender 'onboarding@resend.dev' can only send to your Resend account email. Ensure ADMIN_NOTIFY_EMAIL matches RESEND_ACCOUNT_EMAIL.",
-          },
-          { status: 403 }
+          { status: 403, headers: corsHeadersForOrigin(origin) }
         );
       }
     }
 
-    if (!adminNotifyEmail) {
-      console.warn("[volunteer] No admin email configured; skipping email.");
-    } else {
-      try {
-        await resend.emails.send({
-          from,
-          to: [adminNotifyEmail],
-          subject: "New Volunteer Application — LMGHI",
-          text: `New application received:\n\nName: ${payload.full_name}\nEmail: ${payload.email}\nPhone: ${
-            payload.phone || "-"
-          }\nRole interest: ${
-            payload.role_interest || "-"
-          }\nCountry: ${payload.country || "-"}\nCity: ${
-            payload.city || "-"
-          }\nAvailability: ${payload.availability || "-"}\nMotivation: ${
-            payload.motivation || "-"
-          }\nCV: ${payload.cv_url || "-"}`,
-        });
-      } catch (e: any) {
-        console.error("[volunteer] Resend error:", e?.message || e);
-        // Don’t fail the whole request if email fails (DB already has the record)
-        return NextResponse.json({
-          ok: true,
-          status: 200,
-          id: data?.id,
-          warning: "Saved, but email failed to send.",
-        });
-      }
+    if (adminNotifyEmail) {
+      await resend.emails.send({
+        from,
+        to: [adminNotifyEmail],
+        subject: "New Volunteer Application — LMGHI",
+        text: `New application received:\n\nName: ${body.fullName}\nEmail: ${body.email}\nPhone: ${body.phone || "-"}\nTrack: ${body.track || "-"}\nCountry: ${body.country || "-"}\nCity: ${body.city || "-"}\nAvailability: ${body.availability || "-"}\nMotivation: ${body.motivation || "-"}\nCV: ${body.cvUrl || "-"}`,
+      });
     }
 
-    return NextResponse.json({ ok: true, status: 200, id: data?.id });
-  } catch (e: any) {
-    console.error("[volunteer] API exception:", e?.message || e, e?.stack || "");
     return NextResponse.json(
-      {
-        ok: false,
-        status: 500,
-        stage: "exception",
-        message: e?.message || String(e),
-      },
-      { status: 500 }
+      { ok: true, status: 200, id: data?.id },
+      { status: 200, headers: corsHeadersForOrigin(origin) }
+    );
+  } catch (e: any) {
+    return NextResponse.json(
+      { ok: false, status: 500, stage: "exception", message: e?.message || "Server error" },
+      { status: 500, headers: corsHeadersForOrigin(origin) }
     );
   }
 }
