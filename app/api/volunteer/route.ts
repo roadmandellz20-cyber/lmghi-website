@@ -36,17 +36,7 @@ export async function POST(req: Request) {
   };
   console.log("[volunteer] Env presence:", envVars);
 
-  // Check for NEXT_PUBLIC usage (should not be present)
-  Object.keys(process.env).forEach((k) => {
-    if (k.startsWith("NEXT_PUBLIC") && [
-      "NEXT_PUBLIC_RESEND_API_KEY",
-      "NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY",
-      "NEXT_PUBLIC_SUPABASE_URL",
-      "NEXT_PUBLIC_ADMIN_NOTIFY_EMAIL"
-    ].includes(k)) {
-      console.warn(`[volunteer] Forbidden NEXT_PUBLIC secret detected: ${k}`);
-    }
-  });
+  // (Optional) Remove noisy NEXT_PUBLIC secret checks for server-only secrets
 
   try {
     const body = await req.json();
@@ -91,10 +81,9 @@ export async function POST(req: Request) {
     // 2) Send lightweight admin notification to ADMIN_NOTIFY_EMAIL (errors logged, do not break API)
     const resendAccountEmail = process.env.RESEND_ACCOUNT_EMAIL || "";
     const adminNotifyEmail = process.env.ADMIN_NOTIFY_EMAIL || resendAccountEmail;
-    let from = "LMGHI <onboarding@resend.dev>";
+    const from = "LMGHI <onboarding@resend.dev>";
 
-    // Resend sender validation
-    // If using resend.dev, only send to Resend account email
+    // Resend sender restriction: only allow if both env vars set and match
     const isResendDev = from.endsWith("@resend.dev>");
     let allowedToSend = true;
     if (isResendDev) {
@@ -103,6 +92,15 @@ export async function POST(req: Request) {
       } else if (adminNotifyEmail !== resendAccountEmail) {
         allowedToSend = false;
       }
+    }
+
+    if (isResendDev && !allowedToSend) {
+      const errMsg = "Resend sender 'onboarding@resend.dev' can only send to your Resend account email. Set RESEND_ACCOUNT_EMAIL in env and ensure ADMIN_NOTIFY_EMAIL matches exactly.";
+      console.error("[volunteer] Resend sender forbidden:", errMsg);
+      return NextResponse.json(
+        { ok: false, status: 403, stage: "email_send", message: errMsg },
+        { status: 403 }
+      );
     }
 
     if (adminNotifyEmail && allowedToSend) {
@@ -116,14 +114,7 @@ export async function POST(req: Request) {
       } catch (e: any) {
         console.error("[volunteer] Resend error:", e?.message || e);
       }
-    } else if (adminNotifyEmail && !allowedToSend) {
-      const errMsg = "Resend sender 'onboarding@resend.dev' can only send to your Resend account email. Set RESEND_ACCOUNT_EMAIL in env and ensure ADMIN_NOTIFY_EMAIL matches.";
-      console.error("[volunteer] Resend sender forbidden:", errMsg);
-      return NextResponse.json(
-        { ok: false, status: 403, stage: "email_send", message: errMsg },
-        { status: 403 }
-      );
-    } else {
+    } else if (!adminNotifyEmail) {
       console.warn("[volunteer] ADMIN_NOTIFY_EMAIL not set; skipping admin notification.");
     }
 
