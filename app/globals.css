@@ -1,49 +1,22 @@
 @import "tailwindcss";
 
-/* -------------------------------------------------------
-   Theme tokens (drives EVERYTHING, including layout/header)
--------------------------------------------------------- */
+/* ---------------------------
+   Theme tokens (dark/light)
+---------------------------- */
 :root {
-  /* Base */
-  --bg: 255 255 255;
-  --fg: 10 10 10;
-
-  /* Surfaces */
-  --card: 255 255 255;
-  --card-2: 248 248 248;
-  --border: 0 0 0;
-
-  /* Accent */
-  --accent: 16 185 129; /* emerald-500-ish */
-  --accent-2: 34 197 94;
-
-  /* Shadows */
-  --shadow: 0 0 0;
-
-  /* Glass */
-  --glass: 255 255 255;
-  --glass-border: 0 0 0;
+  --bg: #ffffff;
+  --fg: #0b0f14;
+  --card: rgba(255, 255, 255, 0.62);
+  --card-border: rgba(0, 0, 0, 0.10);
+  --muted: rgba(0, 0, 0, 0.60);
 }
 
-html.dark {
-  --bg: 3 6 10;
-  --fg: 236 240 245;
-
-  --card: 10 14 18;
-  --card-2: 12 18 22;
-  --border: 255 255 255;
-
-  --accent: 16 185 129;
-  --accent-2: 34 197 94;
-
-  --shadow: 0 0 0;
-
-  --glass: 16 18 22;
-  --glass-border: 255 255 255;
-}
-
-* {
-  -webkit-tap-highlight-color: transparent;
+.dark {
+  --bg: #070a0c;
+  --fg: #eaf0f6;
+  --card: rgba(10, 12, 14, 0.55);
+  --card-border: rgba(255, 255, 255, 0.10);
+  --muted: rgba(255, 255, 255, 0.65);
 }
 
 html,
@@ -52,176 +25,23 @@ body {
 }
 
 body {
-  background: rgb(var(--bg));
-  color: rgb(var(--fg));
+  background: var(--bg);
+  color: var(--fg);
+  overflow-x: hidden; /* ✅ prevents mobile overflow */
 }
 
-/* -------------------------------------------------------
-   App background "alive" effect (subtle, premium)
--------------------------------------------------------- */
-.app-bg {
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  background:
-    radial-gradient(900px 500px at 10% 10%, rgba(var(--accent), 0.16), transparent 60%),
-    radial-gradient(900px 500px at 90% 20%, rgba(var(--accent-2), 0.12), transparent 60%),
-    radial-gradient(700px 400px at 50% 90%, rgba(59, 130, 246, 0.10), transparent 60%);
-  filter: saturate(1.2);
+/* App shell */
+.app-shell {
+  min-height: 100vh;
+  position: relative;
 }
 
-html.dark .app-bg {
-  background:
-    radial-gradient(900px 500px at 10% 10%, rgba(var(--accent), 0.14), transparent 60%),
-    radial-gradient(900px 500px at 90% 20%, rgba(var(--accent-2), 0.10), transparent 60%),
-    radial-gradient(700px 400px at 50% 90%, rgba(59, 130, 246, 0.08), transparent 60%);
-}
-
-/* -------------------------------------------------------
-   iOS-ish liquid glass (buttons + cards)
--------------------------------------------------------- */
-.glass {
-  background: linear-gradient(
-    135deg,
-    rgba(var(--glass), 0.72),
-    rgba(var(--glass), 0.42)
-  );
-  border: 1px solid rgba(var(--glass-border), 0.12);
-  box-shadow:
-    0 20px 60px rgba(0, 0, 0, 0.12),
-    inset 0 1px 0 rgba(255, 255, 255, 0.10);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-}
-
-html.dark .glass {
-  box-shadow:
-    0 20px 60px rgba(0, 0, 0, 0.55),
-    inset 0 1px 0 rgba(255, 255, 255, 0.06);
-}
-
-/* -------------------------------------------------------
-   Universal button system (STOP random-looking buttons)
-   Use className="btn" / "btn-primary" / "btn-ghost"
--------------------------------------------------------- */
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-
-  border-radius: 9999px;
-  padding: 0.70rem 1rem;
-  font-weight: 600;
-  line-height: 1;
-  white-space: nowrap;
-
-  transition:
-    transform 150ms ease,
-    box-shadow 150ms ease,
-    background 150ms ease,
-    border-color 150ms ease,
-    color 150ms ease,
-    opacity 150ms ease;
-
-  transform: translateZ(0);
-  user-select: none;
-}
-
-.btn:active {
-  transform: scale(0.98);
-}
-
-.btn:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 4px rgba(var(--accent), 0.28);
-}
-
-/* liquid glass base */
-.btn-glass {
-  background: linear-gradient(
-    135deg,
-    rgba(var(--glass), 0.70),
-    rgba(var(--glass), 0.35)
-  );
-  border: 1px solid rgba(var(--glass-border), 0.14);
-  box-shadow:
-    0 18px 45px rgba(0, 0, 0, 0.10),
-    inset 0 1px 0 rgba(255, 255, 255, 0.10);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-}
-
-html.dark .btn-glass {
-  box-shadow:
-    0 18px 45px rgba(0, 0, 0, 0.55),
-    inset 0 1px 0 rgba(255, 255, 255, 0.06);
-}
-
-/* variants */
-.btn-primary {
-  background: rgb(var(--accent));
-  color: #04130d;
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  box-shadow: 0 12px 28px rgba(var(--accent), 0.24);
-}
-
-.btn-primary:hover {
-  filter: brightness(1.05);
-}
-
-.btn-ghost {
-  background: rgba(var(--glass), 0.0);
-  border: 1px solid rgba(var(--glass-border), 0.14);
-}
-
-.btn-ghost:hover {
-  background: rgba(var(--glass), 0.18);
-}
-
-.btn-icon {
-  width: 42px;
-  height: 42px;
-  padding: 0;
-  border-radius: 9999px;
-}
-
-/* -------------------------------------------------------
-   Inputs – consistent + responsive
--------------------------------------------------------- */
-.input,
-.select,
-.textarea {
-  width: 100%;
-  border-radius: 16px;
-  border: 1px solid rgba(var(--glass-border), 0.12);
-  background: rgba(var(--glass), 0.20);
-  padding: 0.95rem 1rem;
-  outline: none;
-  transition: border-color 150ms ease, box-shadow 150ms ease, background 150ms ease;
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-}
-
-.input:focus,
-.select:focus,
-.textarea:focus {
-  border-color: rgba(var(--accent), 0.55);
-  box-shadow: 0 0 0 4px rgba(var(--accent), 0.18);
-}
-
-.textarea {
-  resize: vertical;
-}
-
-/* -------------------------------------------------------
-   Mobile: stop overflow / bad scaling
--------------------------------------------------------- */
+/* Container that never breaks mobile */
 .container-safe {
   width: 100%;
-  max-width: 1100px;
-  margin: 0 auto;
+  max-width: 72rem;
+  margin-left: auto;
+  margin-right: auto;
   padding-left: 1rem;
   padding-right: 1rem;
 }
@@ -233,6 +53,121 @@ html.dark .btn-glass {
   }
 }
 
-.no-overflow-x {
-  overflow-x: hidden;
+/* ---------------------------
+   Liquid glass button system
+---------------------------- */
+.liquid-btn {
+  border-radius: 9999px;
+  border: 1px solid var(--card-border);
+  background: color-mix(in srgb, var(--card) 85%, transparent);
+  color: var(--fg);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow:
+    0 8px 30px rgba(0, 0, 0, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  transition:
+    transform 180ms ease,
+    background 180ms ease,
+    box-shadow 180ms ease,
+    border-color 180ms ease;
+}
+
+.liquid-btn:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    0 12px 40px rgba(0, 0, 0, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+.liquid-btn:active {
+  transform: translateY(0px) scale(0.98);
+}
+
+.liquid-btn:focus-visible {
+  outline: none;
+  border-color: rgba(16, 185, 129, 0.55);
+  box-shadow:
+    0 0 0 4px rgba(16, 185, 129, 0.18),
+    0 12px 40px rgba(0, 0, 0, 0.16);
+}
+
+/* ---------------------------
+   Motion system visuals
+---------------------------- */
+
+/* Floating orbs layer */
+.motion-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.orb {
+  position: absolute;
+  width: 520px;
+  height: 520px;
+  border-radius: 9999px;
+  filter: blur(60px);
+  opacity: 0.55;
+  transform: translateZ(0);
+  background:
+    radial-gradient(circle at 30% 30%, rgba(16, 185, 129, 0.55), transparent 65%),
+    radial-gradient(circle at 70% 70%, rgba(59, 130, 246, 0.38), transparent 65%);
+}
+
+.orb-a { left: -180px; top: -140px; }
+.orb-b { right: -220px; top: 18vh; opacity: 0.45; }
+.orb-c { left: 18vw; bottom: -260px; opacity: 0.35; }
+
+.dark .orb {
+  opacity: 0.42;
+}
+
+/* Cursor glow (desktop only, still safe on mobile) */
+.cursor-glow {
+  position: fixed;
+  z-index: 1;
+  width: 520px;
+  height: 520px;
+  border-radius: 9999px;
+  pointer-events: none;
+  left: 0;
+  top: 0;
+  margin-left: -260px;
+  margin-top: -260px;
+  filter: blur(52px);
+  opacity: 0.42;
+  background:
+    radial-gradient(circle at center, rgba(16, 185, 129, 0.35), transparent 60%),
+    radial-gradient(circle at 35% 35%, rgba(59, 130, 246, 0.22), transparent 62%);
+  mix-blend-mode: screen;
+}
+
+.dark .cursor-glow {
+  opacity: 0.34;
+}
+
+/* Click ripple */
+.click-ripple {
+  position: fixed;
+  z-index: 2;
+  width: 180px;
+  height: 180px;
+  margin-left: -90px;
+  margin-top: -90px;
+  border-radius: 9999px;
+  pointer-events: none;
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.25), transparent 60%);
+  filter: blur(2px);
+}
+
+/* Make sure content sits above bg */
+header,
+main,
+footer {
+  position: relative;
+  z-index: 10;
 }
