@@ -15,7 +15,7 @@ export default function Home() {
       <section className="rounded-3xl border border-white/10 bg-gradient-to-br from-emerald-500/10 via-black to-black p-10">
         <div className="inline-flex items-center gap-2 rounded-full border border-emerald-400/25 bg-emerald-500/10 px-4 py-2 text-sm text-white/80">
           <span className="h-2 w-2 rounded-full bg-emerald-400" />
-          Institutional delivery infrastructure — not activities.
+          Institutional global health infrastructure — built for scale.
         </div>
 
         <div className="mt-6 grid gap-10 md:grid-cols-2 md:items-center">
@@ -65,7 +65,7 @@ export default function Home() {
             <div className="flex items-center justify-between">
               <div className="font-semibold">Impact snapshot</div>
               <div className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs text-emerald-200 ring-1 ring-emerald-400/20">
-                early-stage demo
+                live reporting framework
               </div>
             </div>
 
