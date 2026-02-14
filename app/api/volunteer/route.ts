@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
+import { createClient } from "@supabase/supabase-js";
 
-export const runtime = "nodejs"; // IMPORTANT: ensures Node runtime on Vercel
+export const runtime = "nodejs";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY! // server-only
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
 const resend = new Resend(process.env.RESEND_API_KEY!);
@@ -15,110 +15,81 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
 
-    // ✅ Make sure we actually got an email
-    const applicantEmail = body.email || body.applicantEmail;
-    if (!applicantEmail) {
+    if (!body.fullName || !body.email) {
+      const errorMsg = "fullName and email are required";
+      console.error(errorMsg);
       return NextResponse.json(
-        { ok: false, error: "Missing applicant email in request payload." },
+        { ok: false, stage: "validation", error: errorMsg },
         { status: 400 }
       );
     }
 
-    // 1) Save to DB
-    const { data, error: dbError } = await supabase
-      .from("volunteers")
-      .insert([
-        {
-          full_name: body.fullName ?? body.full_name ?? null,
-          email: applicantEmail,
-          phone: body.phone ?? null,
-          track: body.track ?? null,
-          country: body.country ?? null,
-          city: body.city ?? null,
-          availability: body.availability ?? null,
-          motivation: body.motivation ?? body.why ?? null,
-          cv_url: body.cvUrl ?? null,
-        },
-      ])
-      .select()
+    // Build payload that exactly matches DB column names.
+    const payload = {
+      full_name: body.fullName,
+      email: body.email,
+      phone: body.phone ?? null,
+      role_interest: body.track,
+      country: body.country ?? null,
+      city: body.city ?? null,
+      availability: body.availability ?? null,
+      motivation: body.motivation ?? null,
+      cv_url: body.cvUrl ?? null,
+    };
+
+    // 1) Insert into DB (select only id)
+    const { data, error } = await supabase
+      .from("volunteer_applications")
+      .insert(payload)
+      .select("id")
       .single();
 
-    if (dbError) {
-      console.error("DB insert error:", dbError);
+    if (error) {
+      console.error("Supabase insert error:", error);
       return NextResponse.json(
-        { ok: false, error: "Database insert failed.", details: dbError.message },
+        { ok: false, stage: "db_insert", error: error.message },
         { status: 500 }
       );
     }
 
-    // 2) Send email (admin notification + optional applicant confirmation)
-    const FROM = process.env.MAIL_FROM || "LMGHI <onboarding@resend.dev>";
-    const ADMIN_TO = process.env.ADMIN_NOTIFY_EMAIL;
+    // 2) Send lightweight admin notification to ADMIN_NOTIFY_EMAIL (errors logged, do not break API)
+    const adminEmail = process.env.ADMIN_NOTIFY_EMAIL;
+    const from = "LMGHI <onboarding@resend.dev>";
 
-    if (!ADMIN_TO) {
-      return NextResponse.json(
-        { ok: false, error: "Missing ADMIN_NOTIFY_EMAIL env var." },
-        { status: 500 }
-      );
+    if (adminEmail) {
+      try {
+        await resend.emails.send({
+          from,
+          to: adminEmail,
+          subject: "New Volunteer Application — LMGHI",
+          text: `New application received:\n\nName: ${body.fullName}\nEmail: ${body.email}\nPhone: ${body.phone || "-"}\nTrack: ${body.track}\nCountry: ${body.country || "-"}\nCity: ${body.city || "-"}\nAvailability: ${body.availability || "-"}\nMotivation: ${body.motivation || "-"}\nCV: ${body.cvUrl || "-"}`,
+        });
+      } catch (e: any) {
+        console.error("Resend error:", e?.message || e);
+      }
+    } else {
+      console.warn("ADMIN_NOTIFY_EMAIL not set; skipping admin notification.");
     }
 
-    // Admin notification
-    const adminSend = await resend.emails.send({
-      from: FROM,
-      to: ADMIN_TO,
-      subject: `New volunteer application: ${applicantEmail}`,
-      html: `
-        <h2>New Volunteer Application</h2>
-        <p><b>Name:</b> ${body.fullName ?? body.full_name ?? "—"}</p>
-        <p><b>Email:</b> ${applicantEmail}</p>
-        <p><b>Track:</b> ${body.track ?? "—"}</p>
-        <p><b>Country/City:</b> ${body.country ?? "—"} / ${body.city ?? "—"}</p>
-        <p><b>Availability:</b> ${body.availability ?? "—"}</p>
-        <p><b>Motivation:</b><br/>${(body.motivation ?? body.why ?? "—")
-          .toString()
-          .replace(/\n/g, "<br/>")}</p>
-        <hr/>
-        <p><b>DB Row ID:</b> ${data.id ?? "—"}</p>
-      `,
-    });
-
-    if (adminSend.error) {
-      console.error("Resend admin email failed:", adminSend.error);
-      return NextResponse.json(
-        { ok: false, error: "Admin email failed.", details: adminSend.error },
-        { status: 500 }
-      );
-    }
-
-    // Applicant confirmation (optional but recommended)
-    const applicantSend = await resend.emails.send({
-      from: FROM,
-      to: applicantEmail,
-      subject: "LMGHI — Application received",
-      html: `
-        <p>Thanks for applying to volunteer with LMGHI.</p>
-        <p>We’ve received your application and will contact you if you’re shortlisted.</p>
-        <p style="color:#666;font-size:12px;">This is an automated confirmation.</p>
-      `,
-    });
-
-    if (applicantSend.error) {
-      console.error("Resend applicant email failed:", applicantSend.error);
-      // Don't fail the whole request — admin already got it
-      return NextResponse.json({
-        ok: true,
-        warning: "Applicant confirmation email failed.",
-        applicantEmail,
-        id: data.id,
-      });
-    }
-
-    return NextResponse.json({ ok: true, applicantEmail, id: data.id });
-  } catch (err: any) {
-    console.error("API route crashed:", err);
+    return NextResponse.json({ ok: true });
+  } catch (e: any) {
+    console.error("API exception:", e);
     return NextResponse.json(
-      { ok: false, error: "Server error.", details: err?.message ?? String(err) },
+      { ok: false, step: "exception", error: e?.message || String(e) },
       { status: 500 }
     );
   }
+}
+
+function escapeHtml(input: string) {
+  return String(input || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function escapeAttr(str: string) {
+  return escapeHtml(str).replaceAll("`", "&#096;");
 }

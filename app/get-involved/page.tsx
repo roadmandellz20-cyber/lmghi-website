@@ -63,7 +63,17 @@ export default function GetInvolvedPage() {
       const res = await fetch("/api/volunteer", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, cv_url }),
+        body: JSON.stringify({
+          fullName: form.full_name,
+          email: form.email,
+          phone: form.phone,
+          track: form.role_interest,
+          country: form.country,
+          city: form.city,
+          availability: form.availability,
+          motivation: form.motivation,
+          cvUrl: cv_url,
+        }),
       });
 
       const data = await res.json();
