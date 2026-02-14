@@ -1,1 +1,0 @@
-# lmghi-website
