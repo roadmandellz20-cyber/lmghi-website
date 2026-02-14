@@ -27,9 +27,8 @@ export default function Home() {
             </h1>
 
             <p className="mt-5 text-lg text-white/70">
-              LMGHI is built to run scalable community health programs with
-              clear governance, standardized operations, and accountable impact
-              reporting—so partners can fund outcomes, not guesswork.
+              LMGHI is built to run community health programs as systems—defined governance,
+              standardized operations, measurable outcomes, and transparent reporting.
             </p>
 
             <div className="mt-7 flex flex-wrap gap-3">
@@ -47,7 +46,7 @@ export default function Home() {
               </Link>
               <Link
                 href="/get-involved"
-                className="rounded-full border border-white/15 bg-white/0 px-6 py-3 font-semibold text-white hover:bg-white/5"
+                className="rounded-full border border-white/15 px-6 py-3 font-semibold text-white hover:bg-white/5"
               >
                 Donate / Partner
               </Link>
@@ -97,8 +96,8 @@ export default function Home() {
             Programs run like events, not systems.
           </h2>
           <p className="mt-3 text-white/70">
-            When delivery isn’t standardized, results depend on luck, not
-            structure. Reporting is inconsistent and accountability disappears.
+            When delivery isn’t standardized, results depend on luck, not structure.
+            Reporting is inconsistent and accountability disappears.
           </p>
         </div>
 
@@ -108,8 +107,8 @@ export default function Home() {
             Governance + operations + measurement.
           </h2>
           <p className="mt-3 text-white/70">
-            Clear roles, policies, and workflows paired with monitoring and
-            evaluation—so outcomes are trackable and fundable.
+            Clear roles, policies, and workflows paired with Monitoring & Evaluation—so
+            outcomes are trackable and fundable.
           </p>
         </div>
 
@@ -119,8 +118,8 @@ export default function Home() {
             Transparency partners can audit.
           </h2>
           <p className="mt-3 text-white/70">
-            Publish reports, financial disclosure, and M&E frameworks so donors
-            and governments can trust what they support.
+            Publish reports, financial disclosure, and M&E frameworks so donors and
+            governments can trust what they support.
           </p>
         </div>
       </section>

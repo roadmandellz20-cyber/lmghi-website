@@ -36,7 +36,7 @@ export default function RootLayout({
               </div>
             </div>
 
-            <nav className="hidden items-center gap-2 md:flex">
+            <nav className="hidden items-center gap-1 md:flex">
               {nav.map((item) => (
                 <Link
                   key={item.href}
