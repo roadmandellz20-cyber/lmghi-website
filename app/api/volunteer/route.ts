@@ -12,6 +12,21 @@ const supabase = createClient(
 const resend = new Resend(process.env.RESEND_API_KEY!);
 
 export async function POST(req: Request) {
+    // --- CORS/Origin check: allow Vercel and localhost only ---
+    const allowedOrigins = [
+      "https://lmghi-website.vercel.app",
+      "http://localhost:3000",
+      "http://127.0.0.1:3000"
+    ];
+    const reqOrigin = req.headers.get("origin") || req.headers.get("referer") || "";
+    const isAllowed = allowedOrigins.some((o) => reqOrigin.startsWith(o));
+    if (reqOrigin && !isAllowed) {
+      console.warn(`[volunteer] Forbidden origin: ${reqOrigin}`);
+      return NextResponse.json(
+        { ok: false, status: 403, stage: "origin_check", message: `Forbidden origin: ${reqOrigin}` },
+        { status: 403 }
+      );
+    }
   // Safe server-side logs for env presence (never print values)
   const envVars = {
     RESEND_API_KEY: !!process.env.RESEND_API_KEY,
