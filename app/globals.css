@@ -1,17 +1,23 @@
 @import "tailwindcss";
 
+/* -----------------------------
+   Theme tokens
+------------------------------ */
 :root {
   --background: #ffffff;
   --foreground: #171717;
+
+  /* Accent */
+  --accent: 16 185 129; /* emerald-500 rgb */
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+/* If you use next-themes (class="dark"), this will apply */
+html.dark {
+  --background: #0a0a0a;
+  --foreground: #ededed;
 }
 
+/* Keep system preference as a fallback */
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
@@ -23,4 +29,109 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* -----------------------------
+   Better mobile sizing
+------------------------------ */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* -----------------------------
+   Liquid glass button
+------------------------------ */
+.liquid-btn {
+  position: relative;
+  border-radius: 9999px;
+
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+
+  background: color-mix(in oklab, white 10%, transparent);
+  border: 1px solid color-mix(in oklab, white 18%, transparent);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+html.dark .liquid-btn {
+  background: color-mix(in oklab, black 20%, transparent);
+  border: 1px solid color-mix(in oklab, white 14%, transparent);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14);
+}
+
+.liquid-btn::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(
+    120% 120% at 20% 0%,
+    rgba(255, 255, 255, 0.35),
+    transparent 55%
+  );
+  opacity: 0.75;
+  pointer-events: none;
+}
+
+.liquid-btn:hover {
+  border-color: rgba(255, 255, 255, 0.28);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+
+.liquid-btn:active {
+  transform: scale(0.98);
+}
+
+/* -----------------------------
+   Subtle animated gradient bg helper
+   (Use on a wrapper: className="animated-bg")
+------------------------------ */
+.animated-bg {
+  position: relative;
+}
+
+.animated-bg::before {
+  content: "";
+  position: fixed;
+  inset: -40%;
+  z-index: -1;
+  background:
+    radial-gradient(600px circle at 20% 20%, rgba(var(--accent), 0.18), transparent 55%),
+    radial-gradient(700px circle at 80% 30%, rgba(59, 130, 246, 0.12), transparent 55%),
+    radial-gradient(700px circle at 40% 80%, rgba(168, 85, 247, 0.10), transparent 55%);
+  filter: blur(30px);
+  opacity: 0.9;
+  animation: bgFloat 18s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes bgFloat {
+  0%   { transform: translate3d(-1%, -1%, 0) scale(1); }
+  50%  { transform: translate3d(1%, 1%, 0) scale(1.02); }
+  100% { transform: translate3d(-1%, -1%, 0) scale(1); }
+}
+
+/* -----------------------------
+   Cursor glow (desktop only)
+   We'll hook into CSS variables --x and --y later.
+------------------------------ */
+@media (hover: hover) and (pointer: fine) {
+  .cursor-glow {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background: radial-gradient(
+      600px circle at var(--x) var(--y),
+      rgba(var(--accent), 0.18),
+      transparent 55%
+    );
+    opacity: 0.55;
+  }
 }
