@@ -89,34 +89,34 @@ export async function POST(req: Request) {
     }
 
     // 2) Send lightweight admin notification to ADMIN_NOTIFY_EMAIL (errors logged, do not break API)
-    const ADMIN_NOTIFY_EMAIL = process.env.ADMIN_NOTIFY_EMAIL || "roadmandell20@gmail.com";
+    const adminNotifyEmail = process.env.ADMIN_NOTIFY_EMAIL || "roadmandell20@gmail.com";
+    const resendAccountEmail = process.env.RESEND_ACCOUNT_EMAIL || "";
     let from = "LMGHI <onboarding@resend.dev>";
 
     // Resend sender validation
     // If using resend.dev, only send to Resend account email
     const isResendDev = from.endsWith("@resend.dev>");
     let allowedToSend = true;
-    let resendAccountEmail = process.env.RESEND_ACCOUNT_EMAIL || null; // Optionally set in env
     if (isResendDev) {
       if (!resendAccountEmail) {
         allowedToSend = false;
-      } else if (adminEmail !== resendAccountEmail) {
+      } else if (adminNotifyEmail !== resendAccountEmail) {
         allowedToSend = false;
       }
     }
 
-    if (adminEmail && allowedToSend) {
+    if (adminNotifyEmail && allowedToSend) {
       try {
         await resend.emails.send({
           from,
-          to: [ADMIN_NOTIFY_EMAIL],
+          to: [adminNotifyEmail],
           subject: "New Volunteer Application — LMGHI",
           text: `New application received:\n\nName: ${body.fullName}\nEmail: ${body.email}\nPhone: ${body.phone || "-"}\nTrack: ${body.track}\nCountry: ${body.country || "-"}\nCity: ${body.city || "-"}\nAvailability: ${body.availability || "-"}\nMotivation: ${body.motivation || "-"}\nCV: ${body.cvUrl || "-"}`,
         });
       } catch (e: any) {
         console.error("[volunteer] Resend error:", e?.message || e);
       }
-    } else if (adminEmail && !allowedToSend) {
+    } else if (adminNotifyEmail && !allowedToSend) {
       const errMsg = "Resend sender 'onboarding@resend.dev' can only send to your Resend account email. Set RESEND_ACCOUNT_EMAIL in env and ensure ADMIN_NOTIFY_EMAIL matches.";
       console.error("[volunteer] Resend sender forbidden:", errMsg);
       return NextResponse.json(
