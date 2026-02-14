@@ -89,8 +89,8 @@ export async function POST(req: Request) {
     }
 
     // 2) Send lightweight admin notification to ADMIN_NOTIFY_EMAIL (errors logged, do not break API)
-    const adminNotifyEmail = process.env.ADMIN_NOTIFY_EMAIL || "roadmandell20@gmail.com";
     const resendAccountEmail = process.env.RESEND_ACCOUNT_EMAIL || "";
+    const adminNotifyEmail = process.env.ADMIN_NOTIFY_EMAIL || resendAccountEmail;
     let from = "LMGHI <onboarding@resend.dev>";
 
     // Resend sender validation
