@@ -59,15 +59,17 @@ export default function GetInvolvedPage() {
         cv_url = data.publicUrl;
       }
 
-      // 2) Insert application
-      const { error: insErr } = await supabase
-        .from("volunteer_applications")
-        .insert({
-          ...form,
-          cv_url,
-        });
+      // 2) Send to server (server writes to DB + emails admins)
+      const res = await fetch("/api/volunteer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...form, cv_url }),
+      });
 
-      if (insErr) throw new Error(`Submit failed: ${insErr.message}`);
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        throw new Error(data?.error || "Submission failed.");
+      }
 
       setDone("Application submitted. LMGHI will contact you if shortlisted.");
       setForm({
