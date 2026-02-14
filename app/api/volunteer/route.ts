@@ -89,7 +89,7 @@ export async function POST(req: Request) {
     }
 
     // 2) Send lightweight admin notification to ADMIN_NOTIFY_EMAIL (errors logged, do not break API)
-    const adminEmail = process.env.ADMIN_NOTIFY_EMAIL;
+    const ADMIN_NOTIFY_EMAIL = process.env.ADMIN_NOTIFY_EMAIL || "roadmandell20@gmail.com";
     let from = "LMGHI <onboarding@resend.dev>";
 
     // Resend sender validation
@@ -109,7 +109,7 @@ export async function POST(req: Request) {
       try {
         await resend.emails.send({
           from,
-          to: ["roadmandell20@gmail.com"], // TEMP: send only to Resend account email for testing
+          to: [ADMIN_NOTIFY_EMAIL],
           subject: "New Volunteer Application — LMGHI",
           text: `New application received:\n\nName: ${body.fullName}\nEmail: ${body.email}\nPhone: ${body.phone || "-"}\nTrack: ${body.track}\nCountry: ${body.country || "-"}\nCity: ${body.city || "-"}\nAvailability: ${body.availability || "-"}\nMotivation: ${body.motivation || "-"}\nCV: ${body.cvUrl || "-"}`,
         });
