@@ -12,14 +12,35 @@ const supabase = createClient(
 const resend = new Resend(process.env.RESEND_API_KEY!);
 
 export async function POST(req: Request) {
+  // Safe server-side logs for env presence (never print values)
+  const envVars = {
+    RESEND_API_KEY: !!process.env.RESEND_API_KEY,
+    SUPABASE_SERVICE_ROLE_KEY: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+    SUPABASE_URL: !!process.env.SUPABASE_URL,
+    ADMIN_NOTIFY_EMAIL: !!process.env.ADMIN_NOTIFY_EMAIL,
+  };
+  console.log("[volunteer] Env presence:", envVars);
+
+  // Check for NEXT_PUBLIC usage (should not be present)
+  Object.keys(process.env).forEach((k) => {
+    if (k.startsWith("NEXT_PUBLIC") && [
+      "NEXT_PUBLIC_RESEND_API_KEY",
+      "NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY",
+      "NEXT_PUBLIC_SUPABASE_URL",
+      "NEXT_PUBLIC_ADMIN_NOTIFY_EMAIL"
+    ].includes(k)) {
+      console.warn(`[volunteer] Forbidden NEXT_PUBLIC secret detected: ${k}`);
+    }
+  });
+
   try {
     const body = await req.json();
 
     if (!body.fullName || !body.email) {
       const errorMsg = "fullName and email are required";
-      console.error(errorMsg);
+      console.error("[volunteer] Validation error:", errorMsg);
       return NextResponse.json(
-        { ok: false, stage: "validation", error: errorMsg },
+        { ok: false, status: 400, stage: "validation", message: errorMsg },
         { status: 400 }
       );
     }
@@ -45,18 +66,31 @@ export async function POST(req: Request) {
       .single();
 
     if (error) {
-      console.error("Supabase insert error:", error);
+      console.error("[volunteer] Supabase insert error:", error);
       return NextResponse.json(
-        { ok: false, stage: "db_insert", error: error.message },
+        { ok: false, status: 500, stage: "db_insert", message: error.message, details: error },
         { status: 500 }
       );
     }
 
     // 2) Send lightweight admin notification to ADMIN_NOTIFY_EMAIL (errors logged, do not break API)
     const adminEmail = process.env.ADMIN_NOTIFY_EMAIL;
-    const from = "LMGHI <onboarding@resend.dev>";
+    let from = "LMGHI <onboarding@resend.dev>";
 
-    if (adminEmail) {
+    // Resend sender validation
+    // If using resend.dev, only send to Resend account email
+    const isResendDev = from.endsWith("@resend.dev>");
+    let allowedToSend = true;
+    let resendAccountEmail = process.env.RESEND_ACCOUNT_EMAIL || null; // Optionally set in env
+    if (isResendDev) {
+      if (!resendAccountEmail) {
+        allowedToSend = false;
+      } else if (adminEmail !== resendAccountEmail) {
+        allowedToSend = false;
+      }
+    }
+
+    if (adminEmail && allowedToSend) {
       try {
         await resend.emails.send({
           from,
@@ -65,20 +99,29 @@ export async function POST(req: Request) {
           text: `New application received:\n\nName: ${body.fullName}\nEmail: ${body.email}\nPhone: ${body.phone || "-"}\nTrack: ${body.track}\nCountry: ${body.country || "-"}\nCity: ${body.city || "-"}\nAvailability: ${body.availability || "-"}\nMotivation: ${body.motivation || "-"}\nCV: ${body.cvUrl || "-"}`,
         });
       } catch (e: any) {
-        console.error("Resend error:", e?.message || e);
+        console.error("[volunteer] Resend error:", e?.message || e);
       }
+    } else if (adminEmail && !allowedToSend) {
+      const errMsg = "Resend sender 'onboarding@resend.dev' can only send to your Resend account email. Set RESEND_ACCOUNT_EMAIL in env and ensure ADMIN_NOTIFY_EMAIL matches.";
+      console.error("[volunteer] Resend sender forbidden:", errMsg);
+      return NextResponse.json(
+        { ok: false, status: 403, stage: "email_send", message: errMsg },
+        { status: 403 }
+      );
     } else {
-      console.warn("ADMIN_NOTIFY_EMAIL not set; skipping admin notification.");
+      console.warn("[volunteer] ADMIN_NOTIFY_EMAIL not set; skipping admin notification.");
     }
 
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, status: 200, id: data?.id });
   } catch (e: any) {
-    console.error("API exception:", e);
+    // Log error with stack if present
+    console.error("[volunteer] API exception:", e?.message || e, e?.stack || "");
     return NextResponse.json(
-      { ok: false, step: "exception", error: e?.message || String(e) },
+      { ok: false, status: 500, stage: "exception", message: e?.message || String(e), stack: e?.stack || null },
       { status: 500 }
     );
   }
+  // ...existing code...
 }
 
 function escapeHtml(input: string) {
