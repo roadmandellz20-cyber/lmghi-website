@@ -4,91 +4,205 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "Knowledge Hub | LMGHI",
   description:
-    "Evidence-based public health education, toolkits, and briefs structured for community delivery and partner use.",
+    "Public health education, program resources, and institutional documentation for communities and partners.",
 };
 
-const categories = [
-  { name: "Prevention", desc: "Lifestyle risk reduction and education modules" },
-  { name: "Screening", desc: "Community screening workflows and tools" },
-  { name: "Referral & Follow-up", desc: "Navigation, tracking, completion tactics" },
-  { name: "Governance", desc: "Policies, standards, accountability practices" },
+type Resource = {
+  tag: string;
+  title: string;
+  desc: string;
+  href?: string;
+};
+
+const featured: Resource[] = [
+  {
+    tag: "COMMUNITY",
+    title: "Understanding Preventive Health",
+    desc: "Simple guidance on prevention, early detection, and healthy routines.",
+    href: "#",
+  },
+  {
+    tag: "M&E",
+    title: "Indicator Overview (Public Summary)",
+    desc: "A plain-language explanation of the indicators we track and why they matter.",
+    href: "#",
+  },
+  {
+    tag: "SAFEGUARDING",
+    title: "Community Safeguarding Guide",
+    desc: "How we ensure safe engagement and respectful community practices.",
+    href: "#",
+  },
 ];
 
-const posts = [
+const library: Resource[] = [
   {
-    title: "Hypertension: What communities should know",
-    date: "2026-02-01",
-    tag: "Prevention",
-    desc: "A clear, shareable community guide to early risk awareness and action.",
+    tag: "PROGRAMS",
+    title: "Community Screening Checklist",
+    desc: "Standard workflow checklist for safe and consistent screening days.",
+    href: "#",
   },
   {
-    title: "Standardized screening day checklist",
-    date: "2026-02-03",
-    tag: "Screening",
-    desc: "A repeatable checklist for running consistent screening delivery.",
+    tag: "DATA",
+    title: "Consent & Data Handling (Public)",
+    desc: "What consent means and how community data is protected.",
+    href: "#",
   },
   {
-    title: "Follow-up tracking: preventing drop-offs",
-    date: "2026-02-05",
-    tag: "Referral & Follow-up",
-    desc: "Systems to ensure people complete follow-up after screening.",
+    tag: "GOVERNANCE",
+    title: "Governance Snapshot",
+    desc: "High-level governance structure and accountability model.",
+    href: "#",
+  },
+  {
+    tag: "TRAINING",
+    title: "Volunteer Onboarding Overview",
+    desc: "Baseline expectations, ethics, and communication standards.",
+    href: "#",
+  },
+  {
+    tag: "REPORTING",
+    title: "Reporting Cadence (Public Summary)",
+    desc: "How reporting is structured across deployments and partners.",
+    href: "#",
+  },
+  {
+    tag: "COMMUNITY",
+    title: "Health Education Briefs",
+    desc: "Short, shareable briefs designed for community awareness.",
+    href: "#",
   },
 ];
 
-function Card({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-6 backdrop-blur-md hover:bg-white/[0.06] transition">
-      {children}
-    </div>
-  );
+function TagPill({ children }: { children: React.ReactNode }) {
+  return <span className="liquid-btn px-3 py-1 text-xs">{children}</span>;
 }
 
 export default function ResourcesPage() {
   return (
-    <div className="space-y-10">
-      <div>
-        <div className="inline-flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-200">
-          Knowledge • Education • Tools
-        </div>
-        <h1 className="mt-4 text-4xl font-bold">Knowledge Hub</h1>
-        <p className="mt-3 max-w-3xl text-white/70">
-          Community education resources and institutional briefs—structured for
-          delivery, not content dumping.
+    <main className="space-y-14">
+      <header className="glass-card glass-pad glass-strong">
+        <TagPill>Resources • Education • Evidence</TagPill>
+
+        <h1 className="mt-6 text-4xl font-extrabold md:text-5xl">
+          Knowledge Hub
+        </h1>
+
+        <p className="mt-5 max-w-3xl text-lg" style={{ color: "var(--muted)" }}>
+          Public-facing resources designed for communities, partners, and stakeholders.
+          This hub supports health education, institutional transparency, and program readiness.
         </p>
-      </div>
 
-      <div className="grid gap-4 md:grid-cols-4">
-        {categories.map((c) => (
-          <Card key={c.name}>
-            <div className="text-sm text-emerald-200">{c.name}</div>
-            <div className="mt-2 text-sm text-white/70">{c.desc}</div>
-          </Card>
-        ))}
-      </div>
+        <nav aria-label="Knowledge hub actions" className="mt-8 flex flex-wrap gap-3">
+          <Link href="/programs" className="liquid-btn px-6 py-3 font-semibold">
+            Explore Programs
+          </Link>
+          <Link
+            href="/impact"
+            className="liquid-btn px-6 py-3 font-semibold"
+            style={{ background: "rgb(16 185 129)", color: "#04130d" }}
+          >
+            View Impact & Transparency
+          </Link>
+        </nav>
+      </header>
 
-      <div className="flex items-end justify-between">
-        <h2 className="text-2xl font-bold">Latest resources</h2>
-        <Link className="text-sm text-emerald-200 hover:text-emerald-100" href="/contact">
-          Request a resource →
-        </Link>
-      </div>
+      <section aria-labelledby="featured">
+        <header className="mb-6">
+          <h2 id="featured" className="text-2xl font-bold md:text-3xl">
+            Featured
+          </h2>
+          <p className="mt-2 max-w-3xl" style={{ color: "var(--muted)" }}>
+            High-value public summaries and community-friendly documents.
+          </p>
+        </header>
 
-      <div className="grid gap-4 md:grid-cols-3">
-        {posts.map((p) => (
-          <Card key={p.title}>
-            <div className="flex items-center justify-between">
-              <div className="text-xs text-emerald-200">{p.tag}</div>
-              <div className="text-xs text-white/50">{p.date}</div>
-            </div>
-            <div className="mt-2 text-lg font-semibold">{p.title}</div>
-            <div className="mt-2 text-sm text-white/70">{p.desc}</div>
+        <div className="grid glass-grid md:grid-cols-3">
+          {featured.map((r) => (
+            <article key={r.title} className="glass-card glass-pad">
+              <p className="text-xs font-semibold text-emerald-500">{r.tag}</p>
+              <h3 className="mt-2 text-lg font-semibold">{r.title}</h3>
+              <p className="mt-2 text-sm" style={{ color: "var(--muted)" }}>
+                {r.desc}
+              </p>
 
-            <button className="mt-4 rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm hover:bg-white/10">
-              Read (coming soon)
-            </button>
-          </Card>
-        ))}
-      </div>
-    </div>
+              <div className="mt-5">
+                {r.href ? (
+                  <a
+                    href={r.href}
+                    className="liquid-btn inline-block px-4 py-2 text-sm font-semibold"
+                  >
+                    Open
+                  </a>
+                ) : (
+                  <span className="text-xs" style={{ color: "var(--muted)" }}>
+                    Coming soon
+                  </span>
+                )}
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section aria-labelledby="library">
+        <header className="mb-6">
+          <h2 id="library" className="text-2xl font-bold md:text-3xl">
+            Resource library
+          </h2>
+          <p className="mt-2 max-w-3xl" style={{ color: "var(--muted)" }}>
+            Operational guides, public summaries, and education materials.
+          </p>
+        </header>
+
+        <div className="grid glass-grid md:grid-cols-2">
+          {library.map((r) => (
+            <article key={r.title} className="glass-card glass-pad">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-semibold text-emerald-500">{r.tag}</p>
+                  <h3 className="mt-2 text-lg font-semibold">{r.title}</h3>
+                </div>
+                <TagPill>Public</TagPill>
+              </div>
+
+              <p className="mt-3 text-sm" style={{ color: "var(--muted)" }}>
+                {r.desc}
+              </p>
+
+              <div className="mt-5">
+                {r.href ? (
+                  <a href={r.href} className="liquid-btn inline-block px-4 py-2 text-sm font-semibold">
+                    Open
+                  </a>
+                ) : (
+                  <span className="text-xs" style={{ color: "var(--muted)" }}>
+                    Coming soon
+                  </span>
+                )}
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section aria-label="Call to action" className="glass-card glass-pad">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-sm font-semibold">Want partner-grade documentation?</p>
+            <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
+              Contact LMGHI for governance artifacts and deployment readiness materials.
+            </p>
+          </div>
+          <Link
+            href="/contact"
+            className="liquid-btn px-5 py-3 text-sm font-semibold"
+            style={{ background: "rgb(16 185 129)", color: "#04130d" }}
+          >
+            Contact us
+          </Link>
+        </div>
+      </section>
+    </main>
   );
 }

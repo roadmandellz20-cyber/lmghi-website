@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
+import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 
 type FormState = {
@@ -14,34 +15,23 @@ type FormState = {
   motivation: string;
 };
 
-declare global {
-  interface Window {
-    turnstile?: {
-      render: (
-        el: HTMLElement,
-        options: {
-          sitekey: string;
-          callback: (token: string) => void;
-          "expired-callback"?: () => void;
-          "error-callback"?: () => void;
-          theme?: "light" | "dark" | "auto";
-        }
-      ) => string;
-      reset: (widgetId?: string) => void;
-    };
-  }
+const tracks = [
+  "Community Outreach",
+  "Data Collection",
+  "Program Support",
+  "Clinical Support",
+  "Media / Communications",
+];
+
+function TagPill({ children }: { children: React.ReactNode }) {
+  return <span className="liquid-btn px-3 py-1 text-xs">{children}</span>;
 }
 
 export default function GetInvolvedPage() {
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-
   const [cvFile, setCvFile] = useState<File | null>(null);
-
-  const [turnstileToken, setTurnstileToken] = useState<string>("");
-  const turnstileElRef = useRef<HTMLDivElement | null>(null);
-  const widgetIdRef = useRef<string | null>(null);
 
   const [form, setForm] = useState<FormState>({
     full_name: "",
@@ -49,7 +39,7 @@ export default function GetInvolvedPage() {
     phone: "",
     country: "",
     city: "",
-    role_interest: "Community Outreach",
+    role_interest: tracks[0],
     availability: "",
     motivation: "",
   });
@@ -57,61 +47,10 @@ export default function GetInvolvedPage() {
   const onChange = (k: keyof FormState, v: string) =>
     setForm((p) => ({ ...p, [k]: v }));
 
-  // Load Turnstile script + render widget
-  useEffect(() => {
-    const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
-    if (!siteKey) {
-      setError("Missing NEXT_PUBLIC_TURNSTILE_SITE_KEY in env.");
-      return;
-    }
-
-    // already loaded?
-    const existing = document.querySelector('script[data-turnstile="1"]');
-    if (!existing) {
-      const s = document.createElement("script");
-      s.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
-      s.async = true;
-      s.defer = true;
-      s.dataset.turnstile = "1";
-      document.body.appendChild(s);
-    }
-
-    const interval = setInterval(() => {
-      if (!window.turnstile || !turnstileElRef.current) return;
-
-      // Render once
-      if (!widgetIdRef.current) {
-        widgetIdRef.current = window.turnstile.render(turnstileElRef.current, {
-          sitekey: siteKey,
-          theme: "dark",
-          callback: (token) => {
-            setTurnstileToken(token);
-          },
-          "expired-callback": () => {
-            setTurnstileToken("");
-          },
-          "error-callback": () => {
-            setTurnstileToken("");
-          },
-        });
-      }
-
-      clearInterval(interval);
-    }, 200);
-
-    return () => clearInterval(interval);
-  }, []);
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setDone(null);
-
-    if (!turnstileToken) {
-      setError("Please complete the Turnstile check.");
-      return;
-    }
-
     setLoading(true);
 
     try {
@@ -132,7 +71,7 @@ export default function GetInvolvedPage() {
         cv_url = data.publicUrl;
       }
 
-      // 2) Send to server
+      // 2) Send to server (server writes to DB + emails admins)
       const res = await fetch("/api/volunteer", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -146,7 +85,6 @@ export default function GetInvolvedPage() {
           availability: form.availability,
           motivation: form.motivation,
           cvUrl: cv_url,
-          turnstileToken,
         }),
       });
 
@@ -162,192 +100,277 @@ export default function GetInvolvedPage() {
         phone: "",
         country: "",
         city: "",
-        role_interest: "Community Outreach",
+        role_interest: tracks[0],
         availability: "",
         motivation: "",
       });
       setCvFile(null);
-
-      // reset Turnstile after successful submit
-      setTurnstileToken("");
-      if (window.turnstile && widgetIdRef.current) {
-        window.turnstile.reset(widgetIdRef.current);
-      }
     } catch (err: any) {
       setError(err?.message || "Something went wrong.");
-      // reset token so user re-verifies (prevents stuck/fake tokens)
-      setTurnstileToken("");
-      if (window.turnstile && widgetIdRef.current) {
-        window.turnstile.reset(widgetIdRef.current);
-      }
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="space-y-10">
-      <div>
-        <div className="inline-flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-200">
-          Donate • Partner • Volunteer
-        </div>
-        <h1 className="mt-4 text-4xl font-bold">Get Involved</h1>
-        <p className="mt-3 max-w-3xl text-white/70">
-          Choose a structured pathway. Volunteer applications are tracked and reviewed under defined roles and reporting standards.
+    <main className="space-y-14">
+      <header className="glass-card glass-pad glass-strong">
+        <TagPill>Donate • Partner • Volunteer</TagPill>
+
+        <h1 className="mt-6 text-4xl font-extrabold md:text-5xl">
+          Get involved
+        </h1>
+
+        <p className="mt-5 max-w-3xl text-lg" style={{ color: "var(--muted)" }}>
+          Choose a structured pathway. Volunteer applications are reviewed under defined roles,
+          ethics, safeguarding principles, and reporting standards.
         </p>
-      </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-6 backdrop-blur-md">
-          <h2 className="text-xl font-semibold">Volunteer application</h2>
-          <p className="mt-2 text-sm text-white/70">
-            Submit your details and (optional) CV. You’ll receive a response if shortlisted.
-          </p>
+        <nav className="mt-8 flex flex-wrap gap-3" aria-label="Get involved actions">
+          <Link href="/impact" className="liquid-btn px-6 py-3 font-semibold">
+            Transparency standards
+          </Link>
 
-          <form onSubmit={handleSubmit} className="mt-5 space-y-4">
-            <div className="grid gap-3 md:grid-cols-2">
-              <input
-                className="w-full rounded-xl border border-white/10 bg-white/5 p-4 outline-none focus:border-emerald-400/40"
-                placeholder="Full name *"
-                value={form.full_name}
-                onChange={(e) => onChange("full_name", e.target.value)}
-                required
-              />
-              <input
-                className="w-full rounded-xl border border-white/10 bg-white/5 p-4 outline-none focus:border-emerald-400/40"
-                placeholder="Email *"
-                type="email"
-                value={form.email}
-                onChange={(e) => onChange("email", e.target.value)}
-                required
-              />
-            </div>
+          <Link
+            href="/contact"
+            className="liquid-btn px-6 py-3 font-semibold"
+            style={{ background: "rgb(16 185 129)", color: "#04130d" }}
+          >
+            Partnership inquiry
+          </Link>
+        </nav>
+      </header>
 
-            <div className="grid gap-3 md:grid-cols-2">
-              <input
-                className="w-full rounded-xl border border-white/10 bg-white/5 p-4 outline-none focus:border-emerald-400/40"
-                placeholder="Phone (optional)"
-                value={form.phone}
-                onChange={(e) => onChange("phone", e.target.value)}
-              />
-              <select
-                className="w-full rounded-xl border border-white/10 bg-white/5 p-4 outline-none focus:border-emerald-400/40"
-                value={form.role_interest}
-                onChange={(e) => onChange("role_interest", e.target.value)}
-              >
-                <option>Community Outreach</option>
-                <option>Data Collection</option>
-                <option>Program Support</option>
-                <option>Clinical Support</option>
-                <option>Media / Communications</option>
-              </select>
-            </div>
+      <section className="grid glass-grid md:grid-cols-2" aria-label="Engagement pathways">
+        {/* Volunteer form */}
+        <section className="glass-card glass-pad" aria-labelledby="volunteer-application">
+          <header>
+            <h2 id="volunteer-application" className="text-2xl font-bold">
+              Volunteer application
+            </h2>
+            <p className="mt-2 text-sm" style={{ color: "var(--muted)" }}>
+              Submit your details and optional CV. You will receive a response if shortlisted.
+            </p>
+          </header>
 
-            <div className="grid gap-3 md:grid-cols-2">
-              <input
-                className="w-full rounded-xl border border-white/10 bg-white/5 p-4 outline-none focus:border-emerald-400/40"
-                placeholder="Country"
-                value={form.country}
-                onChange={(e) => onChange("country", e.target.value)}
-              />
-              <input
-                className="w-full rounded-xl border border-white/10 bg-white/5 p-4 outline-none focus:border-emerald-400/40"
-                placeholder="City"
-                value={form.city}
-                onChange={(e) => onChange("city", e.target.value)}
-              />
-            </div>
-
-            <input
-              className="w-full rounded-xl border border-white/10 bg-white/5 p-4 outline-none focus:border-emerald-400/40"
-              placeholder="Availability (e.g., weekends, evenings)"
-              value={form.availability}
-              onChange={(e) => onChange("availability", e.target.value)}
-            />
-
-            <textarea
-              className="w-full rounded-xl border border-white/10 bg-white/5 p-4 outline-none focus:border-emerald-400/40"
-              placeholder="Why do you want to volunteer with LMGHI?"
-              rows={5}
-              value={form.motivation}
-              onChange={(e) => onChange("motivation", e.target.value)}
-            />
-
-            <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-              <div className="text-sm font-semibold">Upload CV (optional)</div>
-              <div className="mt-2 text-xs text-white/60">
-                PDF recommended. This will be stored in our CV uploads bucket.
+          <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+            <div className="grid glass-grid md:grid-cols-2">
+              <div className="space-y-2">
+                <label className="text-sm font-semibold" htmlFor="full_name">
+                  Full name <span className="text-emerald-500">*</span>
+                </label>
+                <input
+                  id="full_name"
+                  className="glass-input"
+                  placeholder="Your full name"
+                  value={form.full_name}
+                  onChange={(e) => onChange("full_name", e.target.value)}
+                  required
+                />
               </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-semibold" htmlFor="email">
+                  Email <span className="text-emerald-500">*</span>
+                </label>
+                <input
+                  id="email"
+                  className="glass-input"
+                  placeholder="you@example.com"
+                  type="email"
+                  value={form.email}
+                  onChange={(e) => onChange("email", e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="grid glass-grid md:grid-cols-2">
+              <div className="space-y-2">
+                <label className="text-sm font-semibold" htmlFor="phone">
+                  Phone (optional)
+                </label>
+                <input
+                  id="phone"
+                  className="glass-input"
+                  placeholder="+220..."
+                  value={form.phone}
+                  onChange={(e) => onChange("phone", e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-semibold" htmlFor="role_interest">
+                  Role interest
+                </label>
+                <select
+                  id="role_interest"
+                  className="glass-input"
+                  value={form.role_interest}
+                  onChange={(e) => onChange("role_interest", e.target.value)}
+                >
+                  {tracks.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="grid glass-grid md:grid-cols-2">
+              <div className="space-y-2">
+                <label className="text-sm font-semibold" htmlFor="country">
+                  Country
+                </label>
+                <input
+                  id="country"
+                  className="glass-input"
+                  placeholder="Country"
+                  value={form.country}
+                  onChange={(e) => onChange("country", e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-semibold" htmlFor="city">
+                  City
+                </label>
+                <input
+                  id="city"
+                  className="glass-input"
+                  placeholder="City"
+                  value={form.city}
+                  onChange={(e) => onChange("city", e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-semibold" htmlFor="availability">
+                Availability
+              </label>
               <input
-                className="mt-3 block w-full text-sm text-white/70"
+                id="availability"
+                className="glass-input"
+                placeholder="e.g., weekends, evenings"
+                value={form.availability}
+                onChange={(e) => onChange("availability", e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-semibold" htmlFor="motivation">
+                Motivation
+              </label>
+              <textarea
+                id="motivation"
+                className="glass-input"
+                placeholder="Why do you want to volunteer with LMGHI?"
+                rows={5}
+                value={form.motivation}
+                onChange={(e) => onChange("motivation", e.target.value)}
+              />
+            </div>
+
+            <section className="glass-card glass-pad" aria-label="CV upload">
+              <p className="text-sm font-semibold">Upload CV (optional)</p>
+              <p className="mt-1 text-xs" style={{ color: "var(--muted)" }}>
+                PDF recommended. Stored securely in our CV uploads bucket.
+              </p>
+
+              <input
+                className="mt-3 block w-full text-sm"
                 type="file"
                 accept=".pdf,.doc,.docx"
                 onChange={(e) => setCvFile(e.target.files?.[0] ?? null)}
               />
-            </div>
-
-            {/* Turnstile box */}
-            <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-              <div className="text-sm font-semibold">Human check</div>
-              <div className="mt-2" ref={turnstileElRef} />
-              {!turnstileToken && (
-                <div className="mt-2 text-xs text-white/60">
-                  Complete the check to enable submission.
-                </div>
-              )}
-            </div>
+            </section>
 
             {error && (
-              <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-200">
-                {error}
+              <div className="glass-card glass-pad" style={{ borderColor: "rgba(239,68,68,0.35)" }}>
+                <p className="text-sm" style={{ color: "rgba(239,68,68,0.95)" }}>
+                  {error}
+                </p>
               </div>
             )}
+
             {done && (
-              <div className="rounded-xl border border-emerald-400/20 bg-emerald-500/10 p-4 text-sm text-emerald-100">
-                {done}
+              <div className="glass-card glass-pad" style={{ borderColor: "rgba(16,185,129,0.35)" }}>
+                <p className="text-sm" style={{ color: "rgba(16,185,129,0.95)" }}>
+                  {done}
+                </p>
               </div>
             )}
 
             <button
-              disabled={loading || !turnstileToken}
-              className="w-full rounded-full bg-emerald-500 px-6 py-3 font-semibold text-black hover:bg-emerald-400 disabled:opacity-60"
+              disabled={loading}
+              className="liquid-btn w-full px-6 py-3 font-semibold"
+              style={{ background: "rgb(16 185 129)", color: "#04130d", opacity: loading ? 0.75 : 1 }}
               type="submit"
             >
               {loading ? "Submitting..." : "Submit application"}
             </button>
           </form>
-        </div>
+        </section>
 
-        <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-6 backdrop-blur-md">
-          <h2 className="text-xl font-semibold">Partner / Donate</h2>
-          <p className="mt-2 text-sm text-white/70">
-            Partner deployments and donation systems are next. We’ll connect verified workflows and
-            transparency reporting to every support pathway.
-          </p>
+        {/* Partner / Donate */}
+        <section className="glass-card glass-pad" aria-labelledby="partner-donate">
+          <header>
+            <h2 id="partner-donate" className="text-2xl font-bold">
+              Partner / Donate
+            </h2>
+            <p className="mt-2 text-sm" style={{ color: "var(--muted)" }}>
+              Partnership and donor pathways are structured around measurable outcomes and
+              transparent reporting.
+            </p>
+          </header>
 
-          <div className="mt-5 space-y-3">
-            <a
-              href="/impact"
-              className="block rounded-xl border border-white/10 bg-white/5 p-4 hover:bg-white/10"
-            >
-              <div className="font-semibold">Impact & Transparency</div>
-              <div className="text-sm text-white/60">
-                See reporting standards, disclosure, and audit readiness.
+          <div className="mt-6 space-y-3">
+            <article className="glass-card glass-pad">
+              <h3 className="text-sm font-semibold">Impact &amp; Transparency</h3>
+              <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
+                See reporting standards, disclosure commitments, and audit readiness.
+              </p>
+              <div className="mt-4">
+                <Link href="/impact" className="liquid-btn inline-block px-4 py-2 text-sm font-semibold">
+                  View Impact
+                </Link>
               </div>
-            </a>
+            </article>
 
-            <a
-              href="/contact"
-              className="block rounded-xl border border-white/10 bg-white/5 p-4 hover:bg-white/10"
-            >
-              <div className="font-semibold">Partnership inquiry</div>
-              <div className="text-sm text-white/60">
+            <article className="glass-card glass-pad">
+              <h3 className="text-sm font-semibold">Partnership inquiry</h3>
+              <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
                 Government, NGO, and institutional deployment discussions.
+              </p>
+              <div className="mt-4">
+                <Link
+                  href="/contact"
+                  className="liquid-btn inline-block px-4 py-2 text-sm font-semibold"
+                  style={{ background: "rgb(16 185 129)", color: "#04130d" }}
+                >
+                  Contact team
+                </Link>
               </div>
-            </a>
+            </article>
+
+            <article className="glass-card glass-pad">
+              <h3 className="text-sm font-semibold">Volunteer roles</h3>
+              <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
+                Community outreach, data collection, program support, clinical support, media.
+              </p>
+              <ul className="mt-4 flex flex-wrap gap-2">
+                {tracks.map((t) => (
+                  <li key={t} className="liquid-btn px-3 py-1 text-xs">
+                    {t}
+                  </li>
+                ))}
+              </ul>
+            </article>
           </div>
-        </div>
-      </div>
-    </div>
+        </section>
+      </section>
+    </main>
   );
 }
